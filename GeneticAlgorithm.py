@@ -113,7 +113,71 @@ class GeneticAlgorithm:
             selected_parents.append(winner)
         return selected_parents
 
-    # TODO: crossover, mutation, survivors, termination
+    def crossover(self, parent1: list[list[int]], parent2: list[list[int]]):
+        """
+        performs a crossover between two parents by swapping one whole joint
+        with another parent's joint
+
+        args:
+            parent1: list[list[int]]: first arm configuration parent
+            parent2: list[list[int]]: second arm configuration parent
+
+        returns:
+            paren1: list[list[int]]: parent1 new (possibly unchanged) config
+            paren2: list[list[int]]: parent2 new (possibly unchanged) config
+        """
+        cross_point = random.choice(range(0, self.num_dof))
+
+        perform_crossover = random.choices(
+            [True, False], [self.cross_prob, 1 - self.cross_prob]
+        )
+
+        if perform_crossover:
+            p1_joint = parent1[cross_point]
+            p2_joint = parent2[cross_point]
+            parent1 = p2_joint
+            parent2 = p1_joint
+
+        return parent1, parent2
+
+    def mutation(self, configuration: list[list[int]]) -> list[list[int]]:
+        """
+        Performs a mutation based on the mutation probability
+
+        args:
+            configuration: list[list[int]]: one arm configuration to be mutated
+        """
+        # randomly assigns a bit to be flipped
+        mut_joint = random.choice(range(0, self.num_dof))
+        mut_bit = random.choice(range(0, self.bits_per_theta))
+
+        # randomly (weighted by mutation_prob) decides whether to perform the mutation
+        perform_mut = random.choices(
+            [True, False], [self.mutation_prob, 1 - self.mutation_prob]
+        )
+
+        # perform the bit flip if perform_mut is true
+        if perform_mut:
+            current_bit = configuration[mut_joint][mut_bit]
+            configuration[mut_joint][mut_bit] = 0 if current_bit == 1 else 1
+
+        return configuration
+
+    def survivor_select(self):
+        """
+        determines which of the parent and offspring survive based on fitness.
+        the top 90% of children will survive, and the 10% of parents survive
+        """
+        pass
+
+    def terminate(self):
+        """
+        determines whether the GA has gotten close enough to the best solution
+        to terminate. Based on generation count and accuracy within a tolerance
+        """
+        pass
+
+    # TODO: survivors, termination
 
     ### HELPER FUNCTIONS ###
     def bitstring_to_rad(self, thetas: list[list[int]]) -> list[float]:
