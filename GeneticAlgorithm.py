@@ -9,7 +9,9 @@ import ArmSim
 
 
 class GeneticAlgorithm:
-    """ """
+    """
+    runs a genetic algorithm to solve the inverse kinematics of a robot arm
+    """
 
     def __init__(
         self,
@@ -26,6 +28,8 @@ class GeneticAlgorithm:
         population_size: int = 100,
         num_dof: int = 2,
         bits_per_theta: int = 16,
+        terminate_tol: float = 0.01,
+        max_generations: int = 100,
     ):
         """
         initializes an instance of the GeneticAlgorithm class
@@ -55,8 +59,11 @@ class GeneticAlgorithm:
         self.population_size = population_size
         self.num_dof = num_dof
         self.bits_per_theta = bits_per_theta
+        self.terminate_tol = terminate_tol
+        self.max_generations = max_generations
 
         self.population = []
+        self.generation = 0
 
     ### GENETIC ALGORITHM FUNCTIONS ###
     def initial_thetas(self) -> list[list[int]]:
@@ -163,21 +170,52 @@ class GeneticAlgorithm:
 
         return configuration
 
-    def survivor_select(self):
+    def survivor_select(
+        self, parents: list[list[list[int]]], children: list[list[list[int]]]
+    ) -> list[list[list[int]]]:
         """
         determines which of the parent and offspring survive based on fitness.
         the top 90% of children will survive, and the 10% of parents survive
+
+        args:
+            parents: list[list[list[int]]]: list of parents
+            children: list[list[list[int]]]: list of children
+
+        returns:
+            survivors: list[list[list[int]]]: list of arm configurations that
+            survive to the next generation
         """
-        pass
+        # sort the parents and children based on their fitness
+        parents_sorted = sorted(parents, key=lambda x: self.error(x), reverse=True)
+
+        children_sorted = sorted(children, key=lambda x: self.error(x), reverse=True)
+
+        # select the top 10% of parents
+        survivors = [parents_sorted[i] for i in range(int(0.1 * len(parents_sorted)))]
+        # select the top 90% of children
+        survivors += [
+            children_sorted[i] for i in range(int(0.9 * len(children_sorted)))
+        ]
+
+        return survivors
 
     def terminate(self):
         """
         determines whether the GA has gotten close enough to the best solution
         to terminate. Based on generation count and accuracy within a tolerance
         """
-        pass
+        # checks if the generation count has reached the max
+        if self.generation >= self.max_generations:
+            return True
 
-    # TODO: survivors, termination
+        # checks if the best solution is within the tolerance
+        best_solution = min(self.population, key=lambda x: self.error(x))
+        best_error = self.error(best_solution)
+
+        if best_error <= self.terminate_tol:
+            return True
+
+        return False
 
     ### HELPER FUNCTIONS ###
     def bitstring_to_rad(self, thetas: list[list[int]]) -> list[float]:
