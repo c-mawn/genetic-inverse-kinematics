@@ -29,7 +29,7 @@ class ArmViz:
         # Set for storing ArmSim instances assigned to this vizualiser
         self.arms: WeakSet['ArmSim'] = WeakSet()
 
-        self.running: bool = False
+        self.running: bool = True
         self.callback: Callable[[], None] = lambda: None 
 
     def draw(self):
@@ -175,42 +175,3 @@ class ArmSim:
         # If the arm needs to be assigned to a new visualizer, assign it
         if self._viz:
             self._viz.arms.add(self)
-
-
-# Test the classes
-if __name__ == '__main__':
-    import time
-
-    # Create a visualizer
-    viz = ArmViz()
-
-    # Create three arms to test with
-    arm1 = ArmSim([np.pi / 3, np.pi / 2], [1, 1])
-    arm2 = ArmSim([-np.pi / 4, -np.pi / 2], [2, 1], viz, 'blue')
-    arm3 = ArmSim([4 * np.pi / 3, -np.pi / 2, np.pi / 2, -np.pi / 2, 1/6 * np.pi], [0.5, 0.5, 0.5, 0.5, 1], viz, 'green')
-
-    # Get a variable to keep track of how many times the main loop has run
-    i = 0
-
-    def timestep():
-        """
-        What to do ever timestep of the visualizer main loop
-        """
-
-        # Handle the iterator variable
-        global i
-        i += 1
-
-        # Spin the first and last joints of arm 3 a little bit
-        arm3.thetas[0] += 0.01
-        arm3.thetas[4] += 0.01
-
-        # Assign arm 1 to the visualizer on and off, so that it flashes
-        arm1.viz = viz if i % 100 > 50 else None
-
-        # Include a time delay
-        time.sleep(0.01)
-    
-    # Start the visualizer loop
-    viz.callback = timestep
-    viz.run()
