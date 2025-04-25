@@ -5,7 +5,7 @@ of a robot arm
 
 import random
 import math
-from ArmSim import ArmSim
+from ArmSim import ArmSim, ArmViz
 
 
 class GeneticAlgorithm:
@@ -64,6 +64,7 @@ class GeneticAlgorithm:
 
         self.population = []
         self.generation = 0
+        self.viz = ArmViz()
 
     ### GENETIC ALGORITHM FUNCTIONS ###
     def initial_thetas(self) -> list[list[int]]:
@@ -98,8 +99,9 @@ class GeneticAlgorithm:
                 that the current pose is
         """
         config_rad = self.bitstring_to_rad(configuration)
-        arm = ArmSim(config_rad, self.link_lengths)
+        arm = ArmSim(config_rad, self.link_lengths, self.viz)
         all_joints_pose = arm.fk()  # all joint poses, last element is ee pose
+        self.viz.update()
         ee_pose = all_joints_pose[-1]
 
         error = math.dist(self.goal_pose, ee_pose)
@@ -118,16 +120,13 @@ class GeneticAlgorithm:
         for _ in range(len(self.population)):
             tournament = random.sample(self.population, 3)
 
-            print(f"IN PARENT SELECT\ntournament = {tournament}")
             tourny_dict = {}
             for i, entry in enumerate(tournament):
                 score = self.error(entry)
                 tourny_dict[i] = score
 
             winner = tournament[max(tourny_dict, key=tourny_dict.get)]
-            print(f"\nwinner = {winner}")
             selected_parents.append(winner)
-        print(f"{selected_parents=}\nEND PARENT SELECT")
         return selected_parents
 
     def crossover(self, parent1: list[list[int]], parent2: list[list[int]]):
@@ -152,11 +151,9 @@ class GeneticAlgorithm:
         if perform_crossover:
             p1_joint = parent1[cross_point]
             p2_joint = parent2[cross_point]
-            print(f"{p1_joint=}")
             parent1[cross_point] = p2_joint
             parent2[cross_point] = p1_joint
 
-        print(f"IN CROSSOVER:\n parent1 = {parent1}\n parent2 = {parent2}")
         return parent1, parent2
 
     def mutation(self, configuration: list[list[int]]) -> list[list[int]]:
@@ -166,7 +163,6 @@ class GeneticAlgorithm:
         args:
             configuration: list[list[int]]: one arm configuration to be mutated
         """
-        print(f"\n\n{configuration=}\n\n")
         # randomly assigns a bit to be flipped
         mut_joint = random.choice(range(0, self.num_dof))
         mut_bit = random.choice(range(0, self.bits_per_theta))
@@ -236,27 +232,24 @@ class GeneticAlgorithm:
         """
         # generate the initial population
         self.generate_population()
-        print(f"\npopulation: {self.population}\n")
         # run the ga until termination
         while not self.terminate():
             # increment the generation count
+            print(f"Generation: {self.generation}\n")
+            current_best = min(self.population, key=lambda x: self.error(x))
+            current_best_error = self.error(current_best)
+            print(f"Current Best = {current_best} : {current_best_error} ")
             self.generation += 1
-            print(f"\nCurrent Generation: {self.generation}\n")
 
             # select parents
             selected_parents = self.parent_select()
-            print(f"\nSelected Parents: {selected_parents}\n")
             # generate children
             children = []
             for i in range(0, len(selected_parents), 2):
                 parent1 = selected_parents[i]
                 parent2 = selected_parents[i + 1]
-                print(f"\nparent 1: {parent1}\n")
-                print(f"\nparent 2: {parent2}\n")
 
                 child1, child2 = self.crossover(parent1, parent2)
-                print(f"\nchild 1: {child1}\n")
-                print(f"\nchild 2: {child2}\n")
 
                 child1 = self.mutation(child1)
                 child2 = self.mutation(child2)
