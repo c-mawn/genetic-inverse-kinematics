@@ -44,7 +44,13 @@ Finding inverse kinematic solutions for over-actuated 2D robot arms using geneti
 
 ## Setup
 
-*Question: Do we need include info on setting up a venv? Downloading Python? What level of detail is expected?*
+This project was developed and tested in Python 3.10+. We recommend using a virtual environment.
+
+The only necessary package is `numpy`. `pip-tools` is an optional but recommended command line tool we use to manage package and subpackage versions.
+
+**To install the necessary requirements, use `pip install -r requirements.txt` in the command line.**
+
+If you change the requirements, you can rerun that command to install the new packages, or use `pip-sync` from pip-tools in the command line to also uninstall unnecessary packages or versions. If you need to add new packages, you can add them to `requirements.txt` directly, or just put the package name in `requirements.in` and use `pip-compile` from pip-tools in the command line to autogenerate a requirements file that ensures all package and subpackage versions work well with each other.
 
 ## Usage
 
