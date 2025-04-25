@@ -42,19 +42,15 @@ class ArmViz:
 
         # For every instace of an arm sim
         for arm in self.arms:
-            points = arm.fk()
+            # Get points and transform them into display space
+            points = [(0.0, 0.0)] + arm.fk()
+            transformed_points = [self.point_transform(point) for point in points]
 
-            # Draw a line for each link
-            for i, point in enumerate(points):
-                
-                # Get the position of the previous joint (in display space)
-                x0, y0 = self.point_transform(points[i-1] if i > 0 else (0.0, 0.0))
+            # Take the points and make a tuple of (x1, y1, x2, y2...) for the create_line function
+            point_tuple = tuple([val for point in transformed_points for val in point])
 
-                # Get the position of the current joint (in display space)
-                x1, y1 = self.point_transform(point)
-
-                # Draw the line
-                self.canvas.create_line(x0, y0, x1, y1, fill=arm.color, width=5)
+            # Draw a line with tuple unpacking
+            self.canvas.create_line(*point_tuple, fill=arm.color, width=5, capstyle='round')
 
     def point_transform(self, point: tuple[float, float]) -> tuple[float, float]:
         """
@@ -76,20 +72,31 @@ class ArmViz:
         return scale * point[0] + x_offset, -scale * point[1] + y_offset 
 
     def run(self):
+        """
+        Run the main loop of the visualizer
+        """
         self.running = True        
         while self.running:
             self.update()
 
     def stop(self):
+        """
+        Stop the main loop of the vizualizer from running
+        """
         self.running = False
 
     def update(self):
         """
-        Run the main display loop and start the simulation
+        One tick of the main loop. Resolves the callback, updates the canvas, then handles window events.
         """
         
+        # Handle the callback
         self.callback()
+
+        # Update the canvas
         self.draw()
+
+        # Handle window events
         self.root.update_idletasks()
         self.root.update()
 
@@ -100,7 +107,7 @@ class ArmSim:
     of a genetic algorithm to solve the inverse kinematics
     """
 
-    def __init__(self, viz: ArmViz, thetas: list[float], link_lengths: list[float], color: str = 'black'):
+    def __init__(self, thetas: list[float], link_lengths: list[float], viz: ArmViz | None = None, color: str = 'black'):
         """
         Initializes an instance of the Arm Simulator
 
@@ -112,9 +119,9 @@ class ArmSim:
         self.link_lengths = link_lengths
         self.color = color
 
-        # Add self to the list of arms in the visualizer.
+        # The visualizer the arm is assigned to
+        self._viz: ArmViz | None = None
         self.viz = viz
-        self.viz.arms.add(self)
 
     def fk(self):  # -> list[tuple[float, float]]:
         """
@@ -145,20 +152,65 @@ class ArmSim:
             joint_positions.append((x, y))
 
         return joint_positions
+    
+    @property
+    def viz(self) -> ArmViz | None:
+        """
+        The visualizer the this arm is assigned to
+        """
+        return self._viz
+    
+    @viz.setter
+    def viz(self, ArmViz) -> None:
+        """
+        Change the visualizer that this arm is assigned to
+        """
+        # If the arm is currently assigned to a visualizer, unassign it
+        if self._viz:
+            self._viz.arms.remove(self)
+        
+        # Update the property
+        self._viz = ArmViz
+
+        # If the arm needs to be assigned to a new visualizer, assign it
+        if self._viz:
+            self._viz.arms.add(self)
 
 
+# Test the classes
 if __name__ == '__main__':
     import time
 
+    # Create a visualizer
     viz = ArmViz()
 
-    sim1 = ArmSim(viz, [np.pi / 3, np.pi / 2], [1, 1])
-    sim2 = ArmSim(viz, [-np.pi / 4, -np.pi / 2], [2, 1], 'blue')
-    sim3 = ArmSim(viz, [4 * np.pi / 3, -np.pi / 2, np.pi / 2, -np.pi / 2, 1/6 * np.pi], [0.5, 0.5, 0.5, 0.5, 1], 'green')
+    # Create three arms to test with
+    arm1 = ArmSim([np.pi / 3, np.pi / 2], [1, 1])
+    arm2 = ArmSim([-np.pi / 4, -np.pi / 2], [2, 1], viz, 'blue')
+    arm3 = ArmSim([4 * np.pi / 3, -np.pi / 2, np.pi / 2, -np.pi / 2, 1/6 * np.pi], [0.5, 0.5, 0.5, 0.5, 1], viz, 'green')
+
+    # Get a variable to keep track of how many times the main loop has run
+    i = 0
 
     def timestep():
-        sim3.thetas[0] += 0.1
-        time.sleep(0.1)
+        """
+        What to do ever timestep of the visualizer main loop
+        """
+
+        # Handle the iterator variable
+        global i
+        i += 1
+
+        # Spin the first and last joints of arm 3 a little bit
+        arm3.thetas[0] += 0.01
+        arm3.thetas[4] += 0.01
+
+        # Assign arm 1 to the visualizer on and off, so that it flashes
+        arm1.viz = viz if i % 100 > 50 else None
+
+        # Include a time delay
+        time.sleep(0.01)
     
+    # Start the visualizer loop
     viz.callback = timestep
     viz.run()
