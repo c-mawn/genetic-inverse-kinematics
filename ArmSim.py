@@ -42,19 +42,15 @@ class ArmViz:
 
         # For every instace of an arm sim
         for arm in self.arms:
-            points = arm.fk()
+            # Get points and transform them into display space
+            points = [(0.0, 0.0)] + arm.fk()
+            transformed_points = [self.point_transform(point) for point in points]
 
-            # Draw a line for each link
-            for i, point in enumerate(points):
-                
-                # Get the position of the previous joint (in display space)
-                x0, y0 = self.point_transform(points[i-1] if i > 0 else (0.0, 0.0))
+            # Take the points and make a tuple of (x1, y1, x2, y2...) for the create_line function
+            point_tuple = tuple([val for point in transformed_points for val in point])
 
-                # Get the position of the current joint (in display space)
-                x1, y1 = self.point_transform(point)
-
-                # Draw the line
-                self.canvas.create_line(x0, y0, x1, y1, fill=arm.color, width=5)
+            # Draw a line with tuple unpacking
+            self.canvas.create_line(*point_tuple, fill=arm.color, width=5, capstyle='round')
 
     def point_transform(self, point: tuple[float, float]) -> tuple[float, float]:
         """
