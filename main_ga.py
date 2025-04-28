@@ -1,11 +1,13 @@
 import helpers
 import ga_alts as ga
 from ArmSim import ArmSim, ArmViz
+from typing import Callable
 
 
 def run_ga(
     goal_pose: list[float],
     link_lengths: list[float],
+    theta_init: Callable[[int, int], list[list[int]]],
     initialization: callable,
     fitness_func: callable,
     parent_select: callable,
@@ -26,7 +28,7 @@ def run_ga(
     runs the whole ga based on the parameters passed into the init
     """
     # generate the initial population
-    population = initialization(population_size, num_dof, bits_per_theta)
+    population = initialization(theta_init, population_size, num_dof, bits_per_theta)
     current_generation = 0
     best_of_gen = []
     viz = ArmViz()
@@ -91,6 +93,7 @@ def run_ga(
 soln = run_ga(
     [1.0, 1.0],
     [1.0, 1.0],
+    theta_init=ga.random_initial_thetas,
     initialization=ga.generate_population,
     fitness_func=ga.error,
     parent_select=ga.parent_select,

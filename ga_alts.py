@@ -2,24 +2,15 @@ import random
 import math
 from ArmSim import ArmSim, ArmViz
 
+# TODO: Write other methods of each step
+# (need to do survivor select, and terminate)
 
-############################
-#       CONSTANTS
-############################
-# cross_prob = 1.0
-# mutation_prob = 0.15
-# population_size = 500
-# num_dof = 2
-# bits_per_theta = 16
-# terminate_tol = 0.001
-# max_generations = 100
-############################
+Configuration = list[int]
 
 
-# TODO: Write other methods of each step (mutation already done)
-
-
-def initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> list[list[int]]:
+def random_initial_thetas(
+    num_dof: int = 2, bits_per_theta: int = 16
+) -> list[list[int]]:
     """
     initializes a set of theta values randomly.
     each theta is represented by a list of bits_per_theta bits,
@@ -36,8 +27,28 @@ def initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> list[list[int]
     return thetas
 
 
+def preset_initial_thetas(
+    num_dof: int = 2, bits_per_theta: int = 16
+) -> list[list[int]]:
+    """
+    initializes a set of theta values set to all 0
+
+    returns:
+        thetas: list of list of ints representing each theta in one arm
+            configuration
+    """
+    thetas = []
+    for _ in range(num_dof):
+        bitstring = [0 for _ in range(bits_per_theta)]
+        thetas.append(bitstring)
+    return thetas
+
+
 def generate_population(
-    population_size: int = 500, num_dof: int = 2, bits_per_theta: int = 16
+    init_func: callable,
+    population_size: int = 500,
+    num_dof: int = 2,
+    bits_per_theta: int = 16,
 ) -> list[list[list[int]]]:
     """
     generates an initial set of arm configurations randomly
@@ -47,7 +58,7 @@ def generate_population(
     """
     population = []
     for _ in range(population_size):
-        population.append(initial_thetas(num_dof, bits_per_theta))
+        population.append(init_func(num_dof, bits_per_theta))
     return population
 
 
@@ -77,15 +88,14 @@ def error(
     return error
 
 
-def parent_select(
+def tournament_parent_select(
     population: list[list[list[int]]],
     fitness_func: callable,
     goal_pose: list[float],
     link_lengths: list[float],
 ) -> list[list[list[int]]]:
     """
-    given current population, selects 100 new parents using tournament
-        selection
+    given current population, selects 100 new parents using tournament selection
 
     returns:
         selected_parents: list of arm configurations
@@ -105,7 +115,44 @@ def parent_select(
     return selected_parents
 
 
-def crossover(
+def roulette_parent_select(
+    population: list[list[list[int]]],
+    fitness_func: callable,
+    goal_pose: list[float],
+    link_lengths: list[float],
+) -> list[list[list[int]]]:
+    """
+    given current population, selects 100 new parents using roulette selection
+
+    returns:
+        selected_parents: list of arm configurations
+    """
+
+    selected_parents = []
+    total_fitness = 0.0  # whole population fitness
+    individual_fitness = []  # each config fitness
+    for config in population:
+        # finds fitness of every config in population, then sums them
+        fitness = fitness_func(config, goal_pose, link_lengths)
+        total_fitness += fitness
+        individual_fitness.append(fitness)
+
+    relative_fitness = [f / total_fitness for f in individual_fitness]
+    cumulative_probability = [
+        sum(relative_fitness[: i + 1]) for i in range(len(relative_fitness))
+    ]
+
+    for _ in range(len(population)):
+        rand = random.random()
+        for i, cp in enumerate(cumulative_probability):
+            if rand <= cp:
+                selected_parents.append(population[i])
+                break
+
+    return selected_parents
+
+
+def joint_crossover(
     parent1: list[list[int]],
     parent2: list[list[int]],
     num_dof: int = 2,
@@ -134,6 +181,48 @@ def crossover(
         parent2[cross_point] = p1_joint
 
     return parent1, parent2
+
+
+def uniform_crossover(
+    parent1: list[list[int]],
+    parent2: list[list[int]],
+    num_dof: int = 2,
+    cross_prob: float = 0.85,
+):
+    """
+    performs a crossover between two parents by randomly mixing the values for
+    one joint
+
+    args:
+        parent1: list[list[int]]: first arm configuration parent
+        parent2: list[list[int]]: second arm configuration parent
+
+    returns:
+        child1: list[list[int]]: parent1 new (possibly unchanged) config
+        child2: list[list[int]]: parent2 new (possibly unchanged) config
+    """
+    child1 = parent1.copy()
+    child2 = parent2.copy()
+    child1_joint = []
+    child2_joint = []
+
+    cross_joint = random.choice(range(0, num_dof))
+
+    perform_crossover = random.choices([True, False], [cross_prob, 1 - cross_prob])
+
+    if perform_crossover:
+        p1_joint = parent1[cross_joint]
+        p2_joint = parent2[cross_joint]
+        for i in range(len(p1_joint)):
+            if random.random() >= 0.5:
+                child1_joint.append(p2_joint[i])
+                child2_joint.append(p1_joint[i])
+            else:
+                child1_joint.append(p1_joint[i])
+                child2_joint.append(p2_joint[i])
+        child1[cross_joint] = child1_joint
+        child2[cross_joint] = child2_joint
+    return child1, child2
 
 
 def mutation(
