@@ -15,8 +15,6 @@ from ArmSim import ArmSim, ArmViz
 # max_generations = 100
 ############################
 
-link_lengths = [1.0, 1.0]
-goal_pose = [1.0, 1.0]
 
 # TODO: Write other methods of each step (mutation already done)
 
@@ -39,7 +37,7 @@ def initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> list[list[int]
 
 
 def generate_population(
-    population_size: int = 500,
+    population_size: int = 500, num_dof: int = 2, bits_per_theta: int = 16
 ) -> list[list[list[int]]]:
     """
     generates an initial set of arm configurations randomly
@@ -49,11 +47,16 @@ def generate_population(
     """
     population = []
     for _ in range(population_size):
-        population.append(initial_thetas())
+        population.append(initial_thetas(num_dof, bits_per_theta))
     return population
 
 
-def error(configuration: list[list[int]]) -> float:
+def error(
+    configuration: list[list[int]],
+    goal_pose: list[float],
+    link_lengths: list[float],
+    viz: ArmViz = None,
+) -> float:
     """
     calculates the euclidean error between the goal pose and the current pose
 
@@ -62,7 +65,11 @@ def error(configuration: list[list[int]]) -> float:
             that the current pose is
     """
     config_rad = bitstring_to_rad(configuration)
-    arm = ArmSim(config_rad, link_lengths)
+    arm = (
+        ArmSim(config_rad, link_lengths, viz)
+        if viz is not None
+        else ArmSim(config_rad, link_lengths)
+    )
     all_joints_pose = arm.fk()  # all joint poses, last element is ee pose
     ee_pose = all_joints_pose[-1]
 
@@ -70,7 +77,12 @@ def error(configuration: list[list[int]]) -> float:
     return error
 
 
-def parent_select(population: list[list[list[int]]]) -> list[list[list[int]]]:
+def parent_select(
+    population: list[list[list[int]]],
+    fitness_func: callable,
+    goal_pose: list[float],
+    link_lengths: list[float],
+) -> list[list[list[int]]]:
     """
     given current population, selects 100 new parents using tournament
         selection
@@ -85,7 +97,7 @@ def parent_select(population: list[list[list[int]]]) -> list[list[list[int]]]:
 
         tourny_dict = {}
         for i, entry in enumerate(tournament):
-            score = error(entry)
+            score = fitness_func(entry, goal_pose, link_lengths)
             tourny_dict[i] = score
 
         winner = tournament[max(tourny_dict, key=tourny_dict.get)]
@@ -186,7 +198,11 @@ def weighted_mutation(
 
 
 def survivor_select(
-    parents: list[list[list[int]]], children: list[list[list[int]]]
+    parents: list[list[list[int]]],
+    children: list[list[list[int]]],
+    fitness_func: callable,
+    goal_pose: list[float],
+    link_lengths: list[float],
 ) -> list[list[list[int]]]:
     """
     determines which of the parent and offspring survive based on fitness.
@@ -201,9 +217,13 @@ def survivor_select(
         survive to the next generation
     """
     # sort the parents and children based on their fitness
-    parents_sorted = sorted(parents, key=lambda x: error(x), reverse=True)
+    parents_sorted = sorted(
+        parents, key=lambda x: fitness_func(x, goal_pose, link_lengths), reverse=True
+    )
 
-    children_sorted = sorted(children, key=lambda x: error(x), reverse=True)
+    children_sorted = sorted(
+        children, key=lambda x: fitness_func(x, goal_pose, link_lengths), reverse=True
+    )
 
     # select the top 10% of parents
     survivors = [parents_sorted[i] for i in range(int(0.1 * len(parents_sorted)))]
@@ -216,6 +236,9 @@ def survivor_select(
 def terminate(
     population: list[list[list[int]]],
     current_generation: int,
+    fitness_func: callable,
+    goal_pose: list[float],
+    link_lengths: list[float],
     max_generations: int = 500,
     terminate_tol: float = 0.01,
 ) -> bool:
@@ -228,8 +251,10 @@ def terminate(
         return True
 
     # checks if the best solution is within the tolerance
-    best_solution = min(population, key=lambda x: error(x))
-    best_error = error(best_solution)
+    best_solution = min(
+        population, key=lambda x: fitness_func(x, goal_pose, link_lengths)
+    )
+    best_error = fitness_func(best_solution, goal_pose, link_lengths)
 
     if best_error <= terminate_tol:
         return True
@@ -257,46 +282,3 @@ def bitstring_to_rad(thetas: list[list[int]], bits_per_theta: int = 16) -> list[
 
     # return [(int("".join(theta), 2) / (2**self.bits_per_theta) * 2 * math.pi) for theta in thetas]
     # uncomment if ur cool
-
-
-# TODO: Update this function to not be in a class.
-# Input different functions
-# Integrate Sim
-# Kill myself
-def run_ga(self, rad: bool = False):
-    """
-    runs the whole ga based on the parameters passed into the init
-    """
-    # generate the initial population
-    generate_population()
-    # run the ga until termination
-    while not self.terminate():
-        # increment the generation count
-        print(f"Generation: {self.generation}\n")
-        current_best = min(self.population, key=lambda x: self.error(x))
-        current_best_error = self.error(current_best)
-        print(f"Current Best = {current_best} : {current_best_error} ")
-        self.generation += 1
-
-        # select parents
-        selected_parents = self.parent_select()
-        # generate children
-        children = []
-        for i in range(0, len(selected_parents), 2):
-            parent1 = selected_parents[i]
-            parent2 = selected_parents[i + 1]
-
-            child1, child2 = self.crossover(parent1, parent2)
-
-            child1 = self.mutation(child1)
-            child2 = self.mutation(child2)
-
-            children.append(child1)
-            children.append(child2)
-
-        # select survivors
-        self.population = self.survivor_select(selected_parents, children)
-
-    # return the best solution
-    best_solution = min(self.population, key=lambda x: self.error(x))
-    return self.bitstring_to_rad(best_solution) if rad else best_solution
