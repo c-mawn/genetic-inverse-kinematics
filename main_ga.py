@@ -1,20 +1,67 @@
 import helpers
 import ga_alts as ga
+from ga_alts import Configuration  # TODO: change to from helpers
 from ArmSim import ArmSim, ArmViz
 from typing import Callable
+
+
+# Looks a bit messy, but explicitly defining the function args and returns here
+# makes it much easier to use them in the function below
 
 
 def run_ga(
     goal_pose: list[float],
     link_lengths: list[float],
-    theta_init: Callable[[int, int], list[list[int]]],
-    initialization: callable,
-    fitness_func: callable,
-    parent_select: callable,
-    crossover: callable,
-    mutation: callable,
-    survivor_select: callable,
-    termination: callable,
+    # theta initialization function:
+    theta_init: Callable[[int, int], Configuration],
+    # population initialization function
+    initialization: Callable[
+        [Callable[[int, int], Configuration], int, int, int],
+        list[Configuration],
+    ],
+    # fitness function
+    fitness_func: Callable[[Configuration, list[float], list[float]], float],
+    # parent selection method
+    parent_select: Callable[
+        [
+            list[Configuration],
+            Callable[[Configuration, list[float], list[float]], float],
+            list[float],
+            list[float],
+        ],
+        list[Configuration],
+    ],
+    # crossover method
+    crossover: Callable[
+        [Configuration, Configuration, int, float],
+        tuple[Configuration, Configuration],
+    ],
+    # mutation method
+    mutation: Callable[[Configuration, int, int, float], Configuration],
+    # survivor selection method
+    survivor_select: Callable[
+        [
+            list[Configuration],
+            list[Configuration],
+            Callable[[Configuration, list[float], list[float]], float],
+            list[float],
+            list[float],
+        ],
+        list[Configuration],
+    ],
+    # termination method
+    termination: Callable[
+        [
+            list[Configuration],
+            int,
+            Callable[[Configuration, list[float], list[float]], float],
+            list[float],
+            list[float],
+            int,
+            float,
+        ],
+        bool,
+    ],
     rad: bool = False,
     cross_prob: float = 0.85,
     mutation_prob: float = 0.15,
@@ -96,8 +143,8 @@ soln = run_ga(
     theta_init=ga.random_initial_thetas,
     initialization=ga.generate_population,
     fitness_func=ga.error,
-    parent_select=ga.parent_select,
-    crossover=ga.crossover,
+    parent_select=ga.tournament_parent_select,
+    crossover=ga.joint_crossover,
     mutation=ga.weighted_mutation,
     survivor_select=ga.survivor_select,
     termination=ga.terminate,
