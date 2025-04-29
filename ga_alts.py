@@ -240,10 +240,14 @@ def weighted_mutation(
     new_configuration: Configuration = []
 
     for i, joint in enumerate(configuration):
+
+        if not random.random() < mutation_prob_each_joint:
+            new_configuration.append(joint)
+            continue
         
-        bit_weight = [2**i for i in reversed(range(0, 16))]
+        bit_weight = [i for i in reversed(range(0, bits_per_theta))]
         mutation_magnitude = random.choices(
-            range(0, 16),
+            range(0, bits_per_theta),
             weights=bit_weight,
         )[0]
 
@@ -252,7 +256,8 @@ def weighted_mutation(
     return new_configuration
 
 
-def numerical_mutation(configuration: Configuration,
+def numerical_mutation(
+    configuration: Configuration,
     num_dof: int = 2,
     bits_per_theta: int = 16,
     mutation_prob: float = 0.75,
@@ -298,6 +303,21 @@ def survivor_select(
     survivors += [children_sorted[i] for i in range(round(0.9 * len(children_sorted)))]
 
     return survivors
+
+
+def elitism(
+    parents: list[Configuration],
+    children: list[Configuration],
+    fitness_func: Fitness_func,
+    goal_pose: list[float],
+    link_lengths: list[float],
+) -> list[Configuration]:
+    
+    all_individuals = parents + children
+
+    all_individuals.sort(key=lambda x: fitness_func(x, goal_pose, link_lengths, None))
+
+    return all_individuals[:100]
 
 
 def terminate(
