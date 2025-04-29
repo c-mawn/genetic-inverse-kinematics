@@ -99,7 +99,7 @@ def run_ga(
 
         arm = ArmSim(helpers.angles(current_best), link_lengths, viz)
         viz.update()
-        time.sleep(0.05)
+        # time.sleep(0.05)
 
         best_of_gen.append(current_best_error)
         print(f"Current Best = {current_best} : {current_best_error} \n")
@@ -138,11 +138,11 @@ def run_ga(
 
 
 soln = run_ga(
-    [1.0, 1.0],
-    [1.0, 1.0],
+    [1.0, 1.5],
+    [1.0, 1.0, 1.0],
     theta_init=ga.random_initial_thetas,
     fitness_func=ga.error,
-    parent_select=ga.tournament_parent_select,
+    parent_select=ga.roulette_parent_select,
     crossover=ga.joint_crossover,
     mutation=ga.numerical_mutation,
     survivor_select=ga.elitism,
@@ -150,13 +150,14 @@ soln = run_ga(
     cross_prob=0.85,
     mutation_prob=0.15,
     population_size=500,
-    num_dof=2,
+    num_dof=3,
     bits_per_theta=16,
     terminate_tol=0.001,
-    max_generations=100,
+    max_generations=1000,
 )
 
 plt.plot(range(len(soln)), soln)
+plt.title("GA with Base Operators")
 plt.xlabel("Generations")
 plt.ylabel("Distance to Goal Pose")
 plt.show()
