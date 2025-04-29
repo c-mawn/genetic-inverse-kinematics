@@ -8,9 +8,7 @@ from helpers import Configuration, Fitness_func, angles
 # (need to do survivor select, and terminate)
 
 
-def random_initial_thetas(
-    num_dof: int = 2, bits_per_theta: int = 16
-) -> Configuration:
+def random_initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> Configuration:
     """
     initializes a set of theta values randomly.
     each theta is represented by a list of bits_per_theta bits,
@@ -26,9 +24,7 @@ def random_initial_thetas(
     return [random.randint(0, 2**bits_per_theta - 1) for _ in range(num_dof)]
 
 
-def preset_initial_thetas(
-    num_dof: int = 2, bits_per_theta: int = 16
-) -> Configuration:
+def preset_initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> Configuration:
     """
     initializes a set of theta values set to all 0
 
@@ -98,7 +94,9 @@ def tournament_parent_select(
 
     sorted_population = population.copy()
     sorted_population.sort(
-        key=lambda configuration: fitness_func(configuration, goal_pose, link_lengths, None)
+        key=lambda configuration: fitness_func(
+            configuration, goal_pose, link_lengths, None
+        )
     )
 
     selected_parents = []
@@ -122,7 +120,10 @@ def roulette_parent_select(
         selected_parents: list of arm configurations
     """
 
-    fitnesses = [fitness_func(configuration, goal_pose, link_lengths, None) for configuration in population]
+    fitnesses = [
+        fitness_func(configuration, goal_pose, link_lengths, None)
+        for configuration in population
+    ]
     return [random.choices(population, fitnesses)[0] for _ in range(len(population))]
 
 
@@ -147,8 +148,8 @@ def joint_crossover(
 
     if not random.random() < cross_prob:
         return parent1, parent2
-    
-    cross_point = random.choice(range(0, num_dof-1))
+
+    cross_point = random.choice(range(0, num_dof - 1))
 
     child1 = parent1[:cross_point] + parent2[cross_point:]
     child2 = parent2[:cross_point] + parent1[cross_point:]
@@ -188,7 +189,7 @@ def uniform_crossover(
         else:
             child1.append(parent1[i])
             child2.append(parent2[i])
-    
+
     return child1, child2
 
 
@@ -205,16 +206,18 @@ def mutation(
         configuration: list[list[int]]: one arm configuration to be mutated
     """
 
-    mutation_prob_each_bit = 1 - (1-mutation_prob)**(1/(num_dof * bits_per_theta))
+    mutation_prob_each_bit = 1 - (1 - mutation_prob) ** (1 / (num_dof * bits_per_theta))
 
     new_configuration: Configuration = []
 
     for i, joint in enumerate(configuration):
-        flip_bit_string = ''.join([
-            '1' if random.random() < mutation_prob_each_bit 
-            else '0' 
-            for _ in range(bits_per_theta)])
-        
+        flip_bit_string = "".join(
+            [
+                "1" if random.random() < mutation_prob_each_bit else "0"
+                for _ in range(bits_per_theta)
+            ]
+        )
+
         new_configuration.append(joint ^ int(flip_bit_string, 2))
 
     return new_configuration
@@ -235,7 +238,7 @@ def weighted_mutation(
         configuration: list[list[int]]: current arm config to mutate
     """
 
-    mutation_prob_each_joint = 1 - (1-mutation_prob)**(1/(num_dof))
+    mutation_prob_each_joint = 1 - (1 - mutation_prob) ** (1 / (num_dof))
 
     new_configuration: Configuration = []
 
@@ -244,14 +247,14 @@ def weighted_mutation(
         if not random.random() < mutation_prob_each_joint:
             new_configuration.append(joint)
             continue
-        
+
         bit_weight = [i for i in reversed(range(0, bits_per_theta))]
         mutation_magnitude = random.choices(
             range(0, bits_per_theta),
             weights=bit_weight,
         )[0]
 
-        new_configuration.append(joint ^ 2**mutation_magnitude) 
+        new_configuration.append(joint ^ 2**mutation_magnitude)
 
     return new_configuration
 
@@ -262,11 +265,13 @@ def numerical_mutation(
     bits_per_theta: int = 16,
     mutation_prob: float = 0.75,
 ) -> Configuration:
-    
+
     if not random.random() < mutation_prob:
         return configuration
-    
-    return [(num + random.randint(-1024, 1024)) % 2**bits_per_theta for num in configuration]
+
+    return [
+        (num + random.randint(-1024, 1024)) % 2**bits_per_theta for num in configuration
+    ]
 
 
 def survivor_select(
@@ -290,11 +295,11 @@ def survivor_select(
     """
     # sort the parents and children based on their fitness
     parents_sorted = sorted(
-        parents, key=lambda x: fitness_func(x, goal_pose, link_lengths, None), reverse=True
+        parents, key=lambda x: fitness_func(x, goal_pose, link_lengths, None)
     )
 
     children_sorted = sorted(
-        children, key=lambda x: fitness_func(x, goal_pose, link_lengths, None), reverse=True
+        children, key=lambda x: fitness_func(x, goal_pose, link_lengths, None)
     )
 
     # select the top 10% of parents
@@ -312,7 +317,7 @@ def elitism(
     goal_pose: list[float],
     link_lengths: list[float],
 ) -> list[Configuration]:
-    
+
     all_individuals = parents + children
 
     all_individuals.sort(key=lambda x: fitness_func(x, goal_pose, link_lengths, None))
@@ -338,7 +343,12 @@ def terminate(
         return True
 
     # checks if the best solution is within the tolerance
-    best_error = min([fitness_func(configuration, goal_pose, link_lengths, None) for configuration in population])
+    best_error = min(
+        [
+            fitness_func(configuration, goal_pose, link_lengths, None)
+            for configuration in population
+        ]
+    )
     if best_error <= terminate_tol:
         return True
 

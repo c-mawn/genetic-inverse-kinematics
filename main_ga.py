@@ -142,10 +142,10 @@ soln = run_ga(
     [1.0, 1.0, 1.0],
     theta_init=ga.random_initial_thetas,
     fitness_func=ga.error,
-    parent_select=ga.roulette_parent_select,
+    parent_select=ga.tournament_parent_select,
     crossover=ga.joint_crossover,
     mutation=ga.numerical_mutation,
-    survivor_select=ga.elitism,
+    survivor_select=ga.survivor_select,
     termination=ga.terminate,
     cross_prob=0.85,
     mutation_prob=0.15,
@@ -153,11 +153,11 @@ soln = run_ga(
     num_dof=3,
     bits_per_theta=16,
     terminate_tol=0.001,
-    max_generations=1000,
+    max_generations=250,
 )
 
 plt.plot(range(len(soln)), soln)
-plt.title("GA with Base Operators")
+plt.title("GA with Mixed Survivor Selection")
 plt.xlabel("Generations")
 plt.ylabel("Distance to Goal Pose")
 plt.show()
