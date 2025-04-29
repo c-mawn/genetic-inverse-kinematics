@@ -7,6 +7,8 @@ Finding inverse kinematic solutions for over-actuated 2D robot arms using geneti
 - Introduce the algorithm(s) you are exploring and the background
 - Introduce the context you are exploring your algorithm in
 
+
+
 ### Solving YOUR Problem / How It Works
 - Explanation of components of the algorithm
 - Detailed contextualization of the algorithm to the problem, including detailed descriptions of any named variables
@@ -54,3 +56,6 @@ If you change the requirements, you can rerun that command to install the new pa
 
 ## Usage
 
+After insalling necessary packages, run the algorithm by using `python3 src/main.py` in the command line. 
+
+To change parameters of the genetic algorithm, go to the bottom of `main.py` and alter the arguments passed into the `run_ga` function. 
