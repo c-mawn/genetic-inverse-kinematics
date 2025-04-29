@@ -4,6 +4,7 @@ from ArmSim import ArmSim, ArmViz
 from typing import Callable
 from helpers import Configuration, Fitness_func
 import time
+import matplotlib.pyplot as plt
 
 # Looks a bit messy, but explicitly defining the function args and returns here
 # makes it much easier to use them in the function below
@@ -95,12 +96,12 @@ def run_ga(
             ),
         )
         current_best_error = fitness_func(current_best, goal_pose, link_lengths, viz)
-        
+
         arm = ArmSim(helpers.angles(current_best), link_lengths, viz)
         viz.update()
         time.sleep(0.05)
 
-        best_of_gen.append(f"{current_best_error=}")
+        best_of_gen.append(current_best_error)
         print(f"Current Best = {current_best} : {current_best_error} \n")
         current_generation += 1
 
@@ -143,14 +144,19 @@ soln = run_ga(
     fitness_func=ga.error,
     parent_select=ga.tournament_parent_select,
     crossover=ga.joint_crossover,
-    mutation=ga.weighted_mutation,
+    mutation=ga.numerical_mutation,
     survivor_select=ga.elitism,
     termination=ga.terminate,
-    cross_prob = 0.85,
-    mutation_prob = 0.15,
-    population_size = 500,
-    num_dof = 2,
-    bits_per_theta = 16,
-    terminate_tol = 0.01,
-    max_generations = 100,
+    cross_prob=0.85,
+    mutation_prob=0.15,
+    population_size=500,
+    num_dof=2,
+    bits_per_theta=16,
+    terminate_tol=0.001,
+    max_generations=100,
 )
+
+plt.plot(range(len(soln)), soln)
+plt.xlabel("Generations")
+plt.ylabel("Distance to Goal Pose")
+plt.show()
