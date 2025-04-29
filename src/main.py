@@ -1,8 +1,7 @@
-import helpers
-import ga_alts as ga
+import genetic_algorithm_functions as ga
 from ArmSim import ArmSim, ArmViz
 from typing import Callable
-from helpers import Configuration, Fitness_func
+from helpers import Configuration, Fitness_func, angles
 import time
 import matplotlib.pyplot as plt
 
@@ -97,7 +96,7 @@ def run_ga(
         )
         current_best_error = fitness_func(current_best, goal_pose, link_lengths, viz)
 
-        arm = ArmSim(helpers.angles(current_best), link_lengths, viz)
+        arm = ArmSim(angles(current_best), link_lengths, viz)
         viz.update()
         # time.sleep(0.05)
 
