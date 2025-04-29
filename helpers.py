@@ -1,23 +1,18 @@
 import math
+from ArmSim import ArmViz
+from typing import Callable
 
+Configuration = list[int]
+Fitness_func = Callable[[Configuration, list[float], list[float], ArmViz|None], float]
 
-def bitstring_to_rad(thetas: list[list[int]], bits_per_theta: int = 16) -> list[float]:
+def angles(configuration: Configuration, bits_per_theta: int = 16) -> list[float]:
     """
-    converts the theta values from the bitstring repr to the radian repr
+    Converts from a list of integers between 0 and 2^bits_per_theta-1 to a list of angles between 0 and 2*pi.
+    
+    Args:
+        bits_per_theta (int): The number of bits to use to represent each angle
 
-    args:
-        thetas: list of lists of ints representing the binary values of each
-            theta in the robot arm
-    returns:
-        theta_rad: list of floats representing a radian value for each theta
+    Returns:
+        angles: list of floats for each joint theta in one arm configuration
     """
-    theta_rad = []
-    for theta in thetas:
-        bitstring = "".join(str(x) for x in theta)
-        dec = int(bitstring, 2)
-        ratio = dec / (2**bits_per_theta)
-        theta_rad.append(ratio * 2 * math.pi)
-    return theta_rad
-
-    # return [(int("".join(theta), 2) / (2**self.bits_per_theta) * 2 * math.pi) for theta in thetas]
-    # uncomment if ur cool
+    return [integer / 2**bits_per_theta * 2 * math.pi for integer in configuration]

@@ -1,55 +1,54 @@
 import random
 import math
 from ArmSim import ArmSim, ArmViz
+from typing import Callable
+from helpers import Configuration, Fitness_func, angles
 
 # TODO: Write other methods of each step
 # (need to do survivor select, and terminate)
 
-Configuration = list[int]
-
 
 def random_initial_thetas(
     num_dof: int = 2, bits_per_theta: int = 16
-) -> list[list[int]]:
+) -> Configuration:
     """
     initializes a set of theta values randomly.
     each theta is represented by a list of bits_per_theta bits,
     which ranges from 0-2pi
 
-    returns:
-        thetas: list of list of ints representing each theta in one arm
-            configuration
+    Args:
+        num_dof (int): The number of degrees of freedom of the desired robot arm
+        bits_per_theta (int): The number of bits to use to represent each angle
+
+    Returns:
+        thetas: list of ints each representing an angle in one arm configuration
     """
-    thetas = []
-    for _ in range(num_dof):
-        bitstring = [random.randint(0, 1) for _ in range(bits_per_theta)]
-        thetas.append(bitstring)
-    return thetas
+    return [random.randint(0, 2**bits_per_theta - 1) for _ in range(num_dof)]
 
 
 def preset_initial_thetas(
     num_dof: int = 2, bits_per_theta: int = 16
-) -> list[list[int]]:
+) -> Configuration:
     """
     initializes a set of theta values set to all 0
 
-    returns:
-        thetas: list of list of ints representing each theta in one arm
-            configuration
+    Args:
+        num_dof (int): The number of degrees of freedom of the desired robot arm
+        bits_per_theta (int): The number of bits to use to represent each angle
+
+    Returns:
+        thetas: list of ints each representing an angle in one arm configuration
     """
-    thetas = []
-    for _ in range(num_dof):
-        bitstring = [0 for _ in range(bits_per_theta)]
-        thetas.append(bitstring)
-    return thetas
+    return [0] * num_dof
 
 
+# TODO: Just make a for look in the GA function
 def generate_population(
-    init_func: callable,
+    init_func: Callable,
     population_size: int = 500,
     num_dof: int = 2,
     bits_per_theta: int = 16,
-) -> list[list[list[int]]]:
+) -> list[Configuration]:
     """
     generates an initial set of arm configurations randomly
 
@@ -63,10 +62,10 @@ def generate_population(
 
 
 def error(
-    configuration: list[list[int]],
+    configuration: Configuration,
     goal_pose: list[float],
     link_lengths: list[float],
-    viz: ArmViz = None,
+    viz: ArmViz | None = None,
 ) -> float:
     """
     calculates the euclidean error between the goal pose and the current pose
@@ -75,12 +74,8 @@ def error(
         error: float value representing the distance away from the goal pose
             that the current pose is
     """
-    config_rad = bitstring_to_rad(configuration)
-    arm = (
-        ArmSim(config_rad, link_lengths, viz)
-        if viz is not None
-        else ArmSim(config_rad, link_lengths)
-    )
+    config_rad = angles(configuration)
+    arm = ArmSim(config_rad, link_lengths, viz)
     all_joints_pose = arm.fk()  # all joint poses, last element is ee pose
     ee_pose = all_joints_pose[-1]
 
@@ -89,38 +84,37 @@ def error(
 
 
 def tournament_parent_select(
-    population: list[list[list[int]]],
-    fitness_func: callable,
+    population: list[Configuration],
+    fitness_func: Fitness_func,
     goal_pose: list[float],
     link_lengths: list[float],
-) -> list[list[list[int]]]:
+) -> list[Configuration]:
     """
     given current population, selects 100 new parents using tournament selection
 
-    returns:
+    Returns:
         selected_parents: list of arm configurations
     """
 
+    sorted_population = population.copy()
+    sorted_population.sort(
+        key=lambda configuration: fitness_func(configuration, goal_pose, link_lengths, None)
+    )
+
     selected_parents = []
     for _ in range(len(population)):
-        tournament = random.sample(population, 3)
-
-        tourny_dict = {}
-        for i, entry in enumerate(tournament):
-            score = fitness_func(entry, goal_pose, link_lengths)
-            tourny_dict[i] = score
-
-        winner = tournament[max(tourny_dict, key=tourny_dict.get)]
-        selected_parents.append(winner)
+        tournament_indexes = random.sample(list(range(len(population))), 3)
+        winner_index = min(tournament_indexes)
+        selected_parents.append(sorted_population[winner_index])
     return selected_parents
 
 
 def roulette_parent_select(
-    population: list[list[list[int]]],
-    fitness_func: callable,
+    population: list[Configuration],
+    fitness_func: Fitness_func,
     goal_pose: list[float],
     link_lengths: list[float],
-) -> list[list[list[int]]]:
+) -> list[Configuration]:
     """
     given current population, selects 100 new parents using roulette selection
 
@@ -128,33 +122,13 @@ def roulette_parent_select(
         selected_parents: list of arm configurations
     """
 
-    selected_parents = []
-    total_fitness = 0.0  # whole population fitness
-    individual_fitness = []  # each config fitness
-    for config in population:
-        # finds fitness of every config in population, then sums them
-        fitness = fitness_func(config, goal_pose, link_lengths)
-        total_fitness += fitness
-        individual_fitness.append(fitness)
-
-    relative_fitness = [f / total_fitness for f in individual_fitness]
-    cumulative_probability = [
-        sum(relative_fitness[: i + 1]) for i in range(len(relative_fitness))
-    ]
-
-    for _ in range(len(population)):
-        rand = random.random()
-        for i, cp in enumerate(cumulative_probability):
-            if rand <= cp:
-                selected_parents.append(population[i])
-                break
-
-    return selected_parents
+    fitnesses = [fitness_func(configuration, goal_pose, link_lengths, None) for configuration in population]
+    return [random.choices(population, fitnesses)[0] for _ in range(len(population))]
 
 
 def joint_crossover(
-    parent1: list[list[int]],
-    parent2: list[list[int]],
+    parent1: Configuration,
+    parent2: Configuration,
     num_dof: int = 2,
     cross_prob: float = 0.85,
 ):
@@ -170,25 +144,24 @@ def joint_crossover(
         parent1: list[list[int]]: parent1 new (possibly unchanged) config
         parent2: list[list[int]]: parent2 new (possibly unchanged) config
     """
-    cross_point = random.choice(range(0, num_dof))
 
-    perform_crossover = random.choices([True, False], [cross_prob, 1 - cross_prob])
+    if not random.random() < cross_prob:
+        return parent1, parent2
+    
+    cross_point = random.choice(range(0, num_dof-1))
 
-    if perform_crossover:
-        p1_joint = parent1[cross_point]
-        p2_joint = parent2[cross_point]
-        parent1[cross_point] = p2_joint
-        parent2[cross_point] = p1_joint
+    child1 = parent1[:cross_point] + parent2[cross_point:]
+    child2 = parent2[:cross_point] + parent1[cross_point:]
 
-    return parent1, parent2
+    return child1, child2
 
 
 def uniform_crossover(
-    parent1: list[list[int]],
-    parent2: list[list[int]],
+    parent1: Configuration,
+    parent2: Configuration,
     num_dof: int = 2,
     cross_prob: float = 0.85,
-):
+) -> tuple[Configuration, Configuration]:
     """
     performs a crossover between two parents by randomly mixing the values for
     one joint
@@ -201,63 +174,58 @@ def uniform_crossover(
         child1: list[list[int]]: parent1 new (possibly unchanged) config
         child2: list[list[int]]: parent2 new (possibly unchanged) config
     """
-    child1 = parent1.copy()
-    child2 = parent2.copy()
-    child1_joint = []
-    child2_joint = []
 
-    cross_joint = random.choice(range(0, num_dof))
+    if not random.random() < cross_prob:
+        return parent1, parent2
 
-    perform_crossover = random.choices([True, False], [cross_prob, 1 - cross_prob])
+    child1 = []
+    child2 = []
 
-    if perform_crossover:
-        p1_joint = parent1[cross_joint]
-        p2_joint = parent2[cross_joint]
-        for i in range(len(p1_joint)):
-            if random.random() >= 0.5:
-                child1_joint.append(p2_joint[i])
-                child2_joint.append(p1_joint[i])
-            else:
-                child1_joint.append(p1_joint[i])
-                child2_joint.append(p2_joint[i])
-        child1[cross_joint] = child1_joint
-        child2[cross_joint] = child2_joint
+    for i in range(num_dof):
+        if random.random() < 0.5:
+            child1.append(parent2[i])
+            child2.append(parent1[i])
+        else:
+            child1.append(parent1[i])
+            child2.append(parent2[i])
+    
     return child1, child2
 
 
 def mutation(
-    configuration: list[list[int]],
+    configuration: Configuration,
     num_dof: int = 2,
     bits_per_theta: int = 16,
     mutation_prob: float = 0.35,
-) -> list[list[int]]:
+) -> Configuration:
     """
     Performs a mutation based on the mutation probability
 
     args:
         configuration: list[list[int]]: one arm configuration to be mutated
     """
-    # randomly assigns a bit to be flipped
-    mut_joint = random.choice(range(0, num_dof))
-    mut_bit = random.choice(range(0, bits_per_theta))
 
-    # randomly (weighted by mutation_prob) decides whether to perform the mutation
-    perform_mut = random.choices([True, False], [mutation_prob, 1 - mutation_prob])
+    mutation_prob_each_bit = 1 - (1-mutation_prob)**(1/(num_dof * bits_per_theta))
 
-    # perform the bit flip if perform_mut is true
-    if perform_mut:
-        current_bit = configuration[mut_joint][mut_bit]
-        configuration[mut_joint][mut_bit] = 0 if current_bit == 1 else 1
+    new_configuration: Configuration = []
 
-    return configuration
+    for i, joint in enumerate(configuration):
+        flip_bit_string = ''.join([
+            '1' if random.random() < mutation_prob_each_bit 
+            else '0' 
+            for _ in range(bits_per_theta)])
+        
+        new_configuration.append(joint ^ int(flip_bit_string, 2))
+
+    return new_configuration
 
 
 def weighted_mutation(
-    configuration: list[list[int]],
+    configuration: Configuration,
     num_dof: int = 2,
     bits_per_theta: int = 16,
     mutation_prob: float = 0.75,
-) -> list[list[int]]:
+) -> Configuration:
     """
     Decides whether to mutate the configuration
     Once decided, flips a bit in the configuration, where lesser significant
@@ -267,32 +235,42 @@ def weighted_mutation(
         configuration: list[list[int]]: current arm config to mutate
     """
 
-    # picks joint to mutate
-    mut_joint = random.choice(range(0, num_dof))
+    mutation_prob_each_joint = 1 - (1-mutation_prob)**(1/(num_dof))
 
-    # picks which bit to mutate, less likely to mutate larger bits
-    bit_weight = [0.5]
-    bit_weight += [1 / x**2 for x in range(2, bits_per_theta + 1)]
-    mut_bit = random.choices(
-        range(0, bits_per_theta),
-        weights=bit_weight[::-1],
-    )[0]
+    new_configuration: Configuration = []
 
-    perform_mut = random.choices([True, False], [mutation_prob, 1 - mutation_prob])
-    if perform_mut:
-        current_bit = configuration[mut_joint][mut_bit]
-        configuration[mut_joint][mut_bit] = 0 if current_bit == 1 else 1
+    for i, joint in enumerate(configuration):
+        
+        bit_weight = [2**i for i in reversed(range(0, 16))]
+        mutation_magnitude = random.choices(
+            range(0, 16),
+            weights=bit_weight,
+        )[0]
 
-    return configuration
+        new_configuration.append(joint ^ 2**mutation_magnitude) 
+
+    return new_configuration
+
+
+def numerical_mutation(configuration: Configuration,
+    num_dof: int = 2,
+    bits_per_theta: int = 16,
+    mutation_prob: float = 0.75,
+) -> Configuration:
+    
+    if not random.random() < mutation_prob:
+        return configuration
+    
+    return [(num + random.randint(-1024, 1024)) % 2**bits_per_theta for num in configuration]
 
 
 def survivor_select(
-    parents: list[list[list[int]]],
-    children: list[list[list[int]]],
-    fitness_func: callable,
+    parents: list[Configuration],
+    children: list[Configuration],
+    fitness_func: Fitness_func,
     goal_pose: list[float],
     link_lengths: list[float],
-) -> list[list[list[int]]]:
+) -> list[Configuration]:
     """
     determines which of the parent and offspring survive based on fitness.
     the top 90% of children will survive, and the 10% of parents survive
@@ -307,25 +285,25 @@ def survivor_select(
     """
     # sort the parents and children based on their fitness
     parents_sorted = sorted(
-        parents, key=lambda x: fitness_func(x, goal_pose, link_lengths), reverse=True
+        parents, key=lambda x: fitness_func(x, goal_pose, link_lengths, None), reverse=True
     )
 
     children_sorted = sorted(
-        children, key=lambda x: fitness_func(x, goal_pose, link_lengths), reverse=True
+        children, key=lambda x: fitness_func(x, goal_pose, link_lengths, None), reverse=True
     )
 
     # select the top 10% of parents
-    survivors = [parents_sorted[i] for i in range(int(0.1 * len(parents_sorted)))]
+    survivors = [parents_sorted[i] for i in range(round(0.1 * len(parents_sorted)))]
     # select the top 90% of children
-    survivors += [children_sorted[i] for i in range(int(0.9 * len(children_sorted)))]
+    survivors += [children_sorted[i] for i in range(round(0.9 * len(children_sorted)))]
 
     return survivors
 
 
 def terminate(
-    population: list[list[list[int]]],
+    population: list[Configuration],
     current_generation: int,
-    fitness_func: callable,
+    fitness_func: Fitness_func,
     goal_pose: list[float],
     link_lengths: list[float],
     max_generations: int = 500,
@@ -340,34 +318,8 @@ def terminate(
         return True
 
     # checks if the best solution is within the tolerance
-    best_solution = min(
-        population, key=lambda x: fitness_func(x, goal_pose, link_lengths)
-    )
-    best_error = fitness_func(best_solution, goal_pose, link_lengths)
-
+    best_error = min([fitness_func(configuration, goal_pose, link_lengths, None) for configuration in population])
     if best_error <= terminate_tol:
         return True
 
     return False
-
-
-def bitstring_to_rad(thetas: list[list[int]], bits_per_theta: int = 16) -> list[float]:
-    """
-    converts the theta values from the bitstring repr to the radian repr
-
-    args:
-        thetas: list of lists of ints representing the binary values of each
-            theta in the robot arm
-    returns:
-        theta_rad: list of floats representing a radian value for each theta
-    """
-    theta_rad = []
-    for theta in thetas:
-        bitstring = "".join(str(x) for x in theta)
-        dec = int(bitstring, 2)
-        ratio = dec / (2**bits_per_theta)
-        theta_rad.append(ratio * 2 * math.pi)
-    return theta_rad
-
-    # return [(int("".join(theta), 2) / (2**self.bits_per_theta) * 2 * math.pi) for theta in thetas]
-    # uncomment if ur cool

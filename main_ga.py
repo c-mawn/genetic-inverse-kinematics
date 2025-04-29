@@ -1,9 +1,8 @@
 import helpers
 import ga_alts as ga
-from ga_alts import Configuration  # TODO: change to from helpers
 from ArmSim import ArmSim, ArmViz
 from typing import Callable
-
+from helpers import Configuration, Fitness_func
 
 # Looks a bit messy, but explicitly defining the function args and returns here
 # makes it much easier to use them in the function below
@@ -20,12 +19,12 @@ def run_ga(
         list[Configuration],
     ],
     # fitness function
-    fitness_func: Callable[[Configuration, list[float], list[float]], float],
+    fitness_func: Fitness_func,
     # parent selection method
     parent_select: Callable[
         [
             list[Configuration],
-            Callable[[Configuration, list[float], list[float]], float],
+            Fitness_func,
             list[float],
             list[float],
         ],
@@ -43,7 +42,7 @@ def run_ga(
         [
             list[Configuration],
             list[Configuration],
-            Callable[[Configuration, list[float], list[float]], float],
+            Fitness_func,
             list[float],
             list[float],
         ],
@@ -54,7 +53,7 @@ def run_ga(
         [
             list[Configuration],
             int,
-            Callable[[Configuration, list[float], list[float]], float],
+            Fitness_func,
             list[float],
             list[float],
             int,
@@ -97,10 +96,14 @@ def run_ga(
                 x,
                 goal_pose,
                 link_lengths,
+                None,
             ),
         )
         current_best_error = fitness_func(current_best, goal_pose, link_lengths, viz)
+        
+        arm = ArmSim(helpers.angles(current_best), link_lengths, viz)
         viz.update()
+
         best_of_gen.append(f"{current_best_error=}")
         print(f"Current Best = {current_best} : {current_best_error} \n")
         current_generation += 1
@@ -134,7 +137,7 @@ def run_ga(
     )
     viz.update()
     print(best_of_gen)
-    return helpers.bitstring_to_rad(best_solution) if rad else best_solution
+    return helpers.angles(best_solution) if rad else best_solution
 
 
 soln = run_ga(
@@ -145,7 +148,7 @@ soln = run_ga(
     fitness_func=ga.error,
     parent_select=ga.tournament_parent_select,
     crossover=ga.joint_crossover,
-    mutation=ga.weighted_mutation,
+    mutation=ga.numerical_mutation,
     survivor_select=ga.survivor_select,
     termination=ga.terminate,
     rad=True,
