@@ -72,7 +72,7 @@ def run_ga(
     population = [theta_init(num_dof, bits_per_theta) for _ in range(population_size)]
     current_generation = 0
     best_of_gen = []
-    viz = ArmViz()
+    viz = ArmViz((goal_pose[0], goal_pose[1]))
     # run the ga until termination
     while not termination(
         population,

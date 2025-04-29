@@ -14,10 +14,13 @@ class ArmViz:
     Arm visualizer class for displaying ArmSims.
     """
 
-    def __init__(self, width: int = 960, height: int = 540):
+    def __init__(self, goal: tuple[float, float] | None = None, width: int = 960, height: int = 540):
         # The size of the canvas
         self.width = width
         self.height = height
+
+        # A point to display as the goal
+        self.goal = goal
 
         # Tkinter objects
         self.root = tk.Tk()
@@ -39,6 +42,10 @@ class ArmViz:
 
         # Clear the canvas
         self.canvas.delete('all')
+
+        if self.goal is not None:
+            x, y = self.point_transform(self.goal)
+            self.canvas.create_oval(x-5, y-5, x+5, y+5, fill='green', outline="")
 
         # For every instace of an arm sim
         for arm in self.arms:

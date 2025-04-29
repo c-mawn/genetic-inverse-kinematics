@@ -25,7 +25,7 @@ class Examples():
 
     def viz_setup(self):
         # Create a visualizer
-        self.viz = ArmViz()
+        self.viz = ArmViz((1, 1))
 
         # Create three arms to test with
         self.arm1 = ArmSim([np.pi / 3, np.pi / 2], [1, 1])
