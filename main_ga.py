@@ -3,6 +3,7 @@ import ga_alts as ga
 from ArmSim import ArmSim, ArmViz
 from typing import Callable
 from helpers import Configuration, Fitness_func
+import time
 
 # Looks a bit messy, but explicitly defining the function args and returns here
 # makes it much easier to use them in the function below
@@ -13,11 +14,6 @@ def run_ga(
     link_lengths: list[float],
     # theta initialization function:
     theta_init: Callable[[int, int], Configuration],
-    # population initialization function
-    initialization: Callable[
-        [Callable[[int, int], Configuration], int, int, int],
-        list[Configuration],
-    ],
     # fitness function
     fitness_func: Fitness_func,
     # parent selection method
@@ -61,20 +57,19 @@ def run_ga(
         ],
         bool,
     ],
-    rad: bool = False,
-    cross_prob: float = 0.85,
-    mutation_prob: float = 0.15,
-    population_size: int = 500,
-    num_dof: int = 2,
-    bits_per_theta: int = 16,
-    terminate_tol: float = 0.001,
-    max_generations: int = 100,
+    cross_prob: float,
+    mutation_prob: float,
+    population_size: int,
+    num_dof: int,
+    bits_per_theta: int,
+    terminate_tol: float,
+    max_generations: int,
 ):
     """
     runs the whole ga based on the parameters passed into the init
     """
     # generate the initial population
-    population = initialization(theta_init, population_size, num_dof, bits_per_theta)
+    population = [theta_init(num_dof, bits_per_theta) for _ in range(population_size)]
     current_generation = 0
     best_of_gen = []
     viz = ArmViz()
@@ -103,6 +98,7 @@ def run_ga(
         
         arm = ArmSim(helpers.angles(current_best), link_lengths, viz)
         viz.update()
+        time.sleep(0.05)
 
         best_of_gen.append(f"{current_best_error=}")
         print(f"Current Best = {current_best} : {current_best_error} \n")
@@ -137,19 +133,24 @@ def run_ga(
     )
     viz.update()
     print(best_of_gen)
-    return helpers.angles(best_solution) if rad else best_solution
+    return best_of_gen
 
 
 soln = run_ga(
     [1.0, 1.0],
     [1.0, 1.0],
     theta_init=ga.random_initial_thetas,
-    initialization=ga.generate_population,
     fitness_func=ga.error,
     parent_select=ga.tournament_parent_select,
     crossover=ga.joint_crossover,
-    mutation=ga.numerical_mutation,
-    survivor_select=ga.survivor_select,
+    mutation=ga.weighted_mutation,
+    survivor_select=ga.elitism,
     termination=ga.terminate,
-    rad=True,
+    cross_prob = 0.85,
+    mutation_prob = 0.15,
+    population_size = 500,
+    num_dof = 2,
+    bits_per_theta = 16,
+    terminate_tol = 0.01,
+    max_generations = 100,
 )
