@@ -30,11 +30,84 @@ There are several ways to solve the inverse kinematics of a robot. You can solve
 We wanted to try using genetic algorithms to find solutions, which we hoped would be faster and more reliable than these other methods. Not only that, our solution would be able to handle over-actuated robot arms, which can have infinite valid solutions for one location.
 
 
-### Solving YOUR Problem / How It Works
-- Explanation of components of the algorithm
-- Detailed contextualization of the algorithm to the problem, including detailed descriptions of any named variables
-- Detailed explanation of encoding the problem
-- At least two diagrams or other form of detailed description
+### Components of the Algorithm
+#### Representation
+
+To represent our problem, we need to encode our robot arm as a list of theta values and arm lengths. 
+
+The arm lengths don't need to be changed while running the algorithm, so those can be explicitly defined when passed into the algorithm. 
+
+The theta values for each joint are represented by a bitstring, usually 16 bits, but can be changed as a parameter in the algorithm. The bitstring represents a value from $0-2\pi$. This is reflected in the image below:
+
+<img src="media/ga_representation.png" width="400">
+ 
+
+Throughout the implementation, the list of bitstrings is condensed into a type alias, called a `Configuration`. This is a list of integers, where the integer is just the bitstring converted. 
+
+#### Initialization
+
+This algorithm has 2 different methods of initializing robot arms. By utilizing the `random_initial_thetas` function, the algorithm randomly assigns theta values to every configuration in the population. By using the `preset_inital_thetas` function, the algorithm sets every configuration in the population to bitstrings of all 0s. This essentially sets every angle of each joint to 0 radians, making them all start at the same level. 
+
+#### Fitness Function
+
+For the algorithm, there is one main idea to how to evauluate the fitness of any given configuration: looking at how far away the robot arm is from the goal pose. The algorithm has two methods for analyzing this: Euclidean and Manhattan distance. The `euclidean_error` function find the distance from the current arm pose to the goal pose in a straight line. The `manhattan_error` function finds the distance between the goal and current poses by adding together the difference in each direction, so rather than a straight line it looks at the total distance along x and y. In the image below, the hypotenuse of the triangle is the euclidean error, and the two legs of the triange (when added together) represent the manhattan error. 
+
+<img src="media/ga_fitness.png" width="400">
+
+Both these function output a single value that can be used to evaluate the fitness of any given arm configuration. Which is used heavily in the steps below. 
+
+#### Parent Selection
+
+The two methods of selecting parents in the genetic algorithm are tournament and roulette selection. 
+
+The `tournament_parent_select` function takes in the entire population, and completely randomly, selects 3 of the configurations. It then finds the fitness of each, and saves the configuration with the lowest fitness. This process runs one time for every member of the population, which results in the same initial population size. 
+
+The `roulette_parent_select` function sorts the entire population by fitness, and randomly selects a parent, weighted by their fitness. Similar to spinning a roulette wheel, but a configuration with a better fitness has a higher chance to be selected. This is done repeatedly, until the entire population size has been filled. 
+
+Both of these methods selects a full set of parents, where it is more likely to get a better configuration as a parent, but still has chances for worse parents to be selected, which increases the genetic diversity in the algorithm. 
+
+#### Crossover
+
+For crossover, the algorithm's two methods are uniform and joint. 
+
+The `joint_crossover` function takes in two parent arm configuration and decides whether to perform the crossover based on the `cross_prob` parameter passed into the algorithm. If the crossover is to occur, the function will randomly pick one joint in the arm configuration, and set that as the crossover point. From there, it swaps the entire rest of the arm with the other parent, essentially cutting off the rest of the arm and sticking it onto the other configuration. 
+
+the `uniform_crossover` function takes in two parent arm configurations, and crosses the genes between them. To do this, it first checks to see if the crossover should occur at all, based on the `cross_prob` parameter passed into the algorithm. If the crossover occurs, it will go through each bit in each joint, and randomly (50% chance) swap the bit between the parents.
+
+Both of these function successfully mix the genetic material between the two parent arm configurations. 
+
+#### Mutation
+
+For mutation, there are 3 methods of altering an arm configuration: Bitflip, Weighted Bitflip, and Numerical.
+
+The `mutation` function performs the basic bitflip mutation for the arm configuration. Firstly, using the `mutation_prob` parameter passed into the algorithm, it decies whether to perform the mutation. If the configuration is to be mutated, this function randomly picks a single bit in the entire arm configuration, and flips it. This can have a very small, or a very large effect on the configuration because if the location of the mutation within a bitstring is one of the more significant bits, it will change the angle by a larger value, and vice versa. 
+
+The `weighted_mutation` function performs a bitflip very similar to the normal `mutation` function. However, the location of the bitflip is weighted to be lesser in significance in the bitstring. For example, flipping the most significant bit (leftmost in the bitstring) will add an entire 180 degrees to the joint in the configuration, whereas flipping the least significant bit will only change the theta value by a fraction of a degree. So, in this function, the algorithm prioritizes flipping the lesser significant bits, as to not ruin any good arm configurations. 
+
+The `numerical_mutation` function mutates the arm completely differently. It randomly picks a value between about -6 to 6 degrees that gets added to each joint in the arm configuration (if the mutation is to occur). This maintains a mostly similar solution, just adding small adjustments to the joint angles at each mutation. 
+
+All three of these methods successfully alter the robot arm configuration's joint angles with randomness involved. 
+
+#### Survivor Selection
+
+After altering the arm configurations in each generation, the algorithm needs to decide which parents and children to keep for the next generation through survivor selection. The algorithm does this in 2 ways: explicit mixed parent+child, and elitism. 
+
+The `survivor_select` function selects the suvivors of each generation by sorting both the list of parents and the list of children by their fitness. Then explicitly kills the bottom 90% of the parents along with the bottom 10% of the children. The remaining 10% of parents and 90% of children then get passed on as the survivors for the next generation. 
+
+The `elitism` function sorts all parents and children into one list, ranked by their fitness. After sorting, the function picks the top 50% of the configurations in the list. This outputs the same number of configurations that there are in the population (as long as the parents and children lists are the same length, which should always be true)
+
+Both of these functions successfuly select a group of survivors to move on to the next generation, in slightly different ways. 
+
+#### Termination
+
+To know when to terminate the genetic algorithm, the `terminate` function looks at two metrics: accuracy and generation count.
+
+The algorithm takes in a tolerance for the solution, which essentially means that if the current solution's fitness is within the tolerance of the goal pose, then the accuracy has been met. If this happens, the algorithm terminates, and the best solution is returned. 
+
+The other metric is the generation count. The algorithm takes in a `max_generations` parameter, which defines how many generations to go through before terminating the algorithm. If the generation count exceeds the max generations, then the algorithm terminates and returns the best solution up to that point. 
+
+Both of these metrics are combined in the `terminate` function, which allows the function to terminate when either one of these conditions are met. 
+
 
 ### Results 
 - Visualization of results provided in some format
