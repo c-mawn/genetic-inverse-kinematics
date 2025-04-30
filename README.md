@@ -46,11 +46,11 @@ Throughout the implementation, the list of bitstrings is condensed into a type a
 
 #### Initialization
 
-This algorithm has 2 different methods of initializing robot arms. By utilizing the `random_initial_thetas` function, the algorithm randomly assigns theta values to every configuration in the population. By using the `preset_inital_thetas` function, the algorithm sets every configuration in the population to bitstrings of all 0s. This essentially sets every angle of each joint to 0 radians, making them all start at the same level. 
+This algorithm has 2 different methods of initializing robot arms. By utilizing the `random_initial_thetas` function, the algorithm randomly assigns theta values to every configuration in the population. By using the `preset_initial_thetas` function, the algorithm sets every configuration in the population to bitstrings of all 0s. This essentially sets every angle of each joint to 0 radians, making them all start at the same level. 
 
 #### Fitness Function
 
-For the algorithm, there is one main idea to how to evauluate the fitness of any given configuration: looking at how far away the robot arm is from the goal pose. The algorithm has two methods for analyzing this: Euclidean and Manhattan distance. The `euclidean_error` function find the distance from the current arm pose to the goal pose in a straight line. The `manhattan_error` function finds the distance between the goal and current poses by adding together the difference in each direction, so rather than a straight line it looks at the total distance along x and y. In the image below, the hypotenuse of the triangle is the euclidean error, and the two legs of the triange (when added together) represent the manhattan error. 
+For the algorithm, there is one main idea to how to evaluate the fitness of any given configuration: looking at how far away the robot arm is from the goal pose. The algorithm has two methods for analyzing this: Euclidean and Manhattan distance. The `euclidean_error` function find the distance from the current arm pose to the goal pose in a straight line. The `manhattan_error` function finds the distance between the goal and current poses by adding together the difference in each direction, so rather than a straight line it looks at the total distance along x and y. In the image below, the hypotenuse of the triangle is the euclidean error, and the two legs of the triangle (when added together) represent the manhattan error. 
 
 <img src="media/ga_fitness.png" width="400">
 
@@ -80,7 +80,7 @@ Both of these function successfully mix the genetic material between the two par
 
 For mutation, there are 3 methods of altering an arm configuration: Bitflip, Weighted Bitflip, and Numerical.
 
-The `mutation` function performs the basic bitflip mutation for the arm configuration. Firstly, using the `mutation_prob` parameter passed into the algorithm, it decies whether to perform the mutation. If the configuration is to be mutated, this function randomly picks a single bit in the entire arm configuration, and flips it. This can have a very small, or a very large effect on the configuration because if the location of the mutation within a bitstring is one of the more significant bits, it will change the angle by a larger value, and vice versa. 
+The `mutation` function performs the basic bitflip mutation for the arm configuration. Firstly, using the `mutation_prob` parameter passed into the algorithm, it decides whether to perform the mutation. If the configuration is to be mutated, this function randomly picks a single bit in the entire arm configuration, and flips it. This can have a very small, or a very large effect on the configuration because if the location of the mutation within a bitstring is one of the more significant bits, it will change the angle by a larger value, and vice versa. 
 
 The `weighted_mutation` function performs a bitflip very similar to the normal `mutation` function. However, the location of the bitflip is weighted to be lesser in significance in the bitstring. For example, flipping the most significant bit (leftmost in the bitstring) will add an entire 180 degrees to the joint in the configuration, whereas flipping the least significant bit will only change the theta value by a fraction of a degree. So, in this function, the algorithm prioritizes flipping the lesser significant bits, as to not ruin any good arm configurations. 
 
@@ -92,11 +92,11 @@ All three of these methods successfully alter the robot arm configuration's join
 
 After altering the arm configurations in each generation, the algorithm needs to decide which parents and children to keep for the next generation through survivor selection. The algorithm does this in 2 ways: explicit mixed parent+child, and elitism. 
 
-The `survivor_select` function selects the suvivors of each generation by sorting both the list of parents and the list of children by their fitness. Then explicitly kills the bottom 90% of the parents along with the bottom 10% of the children. The remaining 10% of parents and 90% of children then get passed on as the survivors for the next generation. 
+The `survivor_select` function selects the survivors of each generation by sorting both the list of parents and the list of children by their fitness. Then explicitly kills the bottom 90% of the parents along with the bottom 10% of the children. The remaining 10% of parents and 90% of children then get passed on as the survivors for the next generation. 
 
 The `elitism` function sorts all parents and children into one list, ranked by their fitness. After sorting, the function picks the top 50% of the configurations in the list. This outputs the same number of configurations that there are in the population (as long as the parents and children lists are the same length, which should always be true)
 
-Both of these functions successfuly select a group of survivors to move on to the next generation, in slightly different ways. 
+Both of these functions successfully select a group of survivors to move on to the next generation, in slightly different ways. 
 
 #### Termination
 
@@ -173,6 +173,6 @@ If you change the requirements, you can rerun that command to install the new pa
 
 ## Usage
 
-After insalling necessary packages, run the algorithm by using `python3 src/main.py` in the command line. 
+After installing necessary packages, run the algorithm by using `python3 src/main.py` in the command line. 
 
 To change parameters of the genetic algorithm, go to the bottom of `main.py` and alter the arguments passed into the `run_ga` function. 
