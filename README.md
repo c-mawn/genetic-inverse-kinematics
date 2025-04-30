@@ -78,9 +78,7 @@ Both of these function successfully mix the genetic material between the two par
 
 #### Mutation
 
-For mutation, there are 3 methods of altering an arm configuration: Bitflip, Weighted Bitflip, and Numerical.
-
-The `mutation` function performs the basic bitflip mutation for the arm configuration. Firstly, using the `mutation_prob` parameter passed into the algorithm, it decides whether to perform the mutation. If the configuration is to be mutated, this function randomly picks a single bit in the entire arm configuration, and flips it. This can have a very small, or a very large effect on the configuration because if the location of the mutation within a bitstring is one of the more significant bits, it will change the angle by a larger value, and vice versa. 
+For mutation, there are 2 methods of altering an arm configuration: Weighted Bitflip and Numerical.
 
 The `weighted_mutation` function performs a bitflip very similar to the normal `mutation` function. However, the location of the bitflip is weighted to be lesser in significance in the bitstring. For example, flipping the most significant bit (leftmost in the bitstring) will add an entire 180 degrees to the joint in the configuration, whereas flipping the least significant bit will only change the theta value by a fraction of a degree. So, in this function, the algorithm prioritizes flipping the lesser significant bits, as to not ruin any good arm configurations. 
 
@@ -142,9 +140,30 @@ In the graph above, there are two key differences between the runs. First, the b
 
 #### Fitness Function Method:
 #### Parent Selection Method:
+
+- Control: `roulette_parent_select`
+- Test: `tournament_parent_select`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_tournament_selection.png" style="width:50%;">
+</div>
+
+Tournament parent selection clearly outperformed roulette parent selection. While roulette selection took approximately 50 generations to converge, tournament selection regularly converged to a solution that was very close to the tolerance in around 10 generations. This is probably because it's so much more likely to choose better parents, but still keeps genetic diversity. Roulette selection was just too likely to pick solutions that weren't that good.
+
 #### Crossover Method:
 #### Mutation Method:
-#### Survivor Selection Method: dom start here the images are media/ga_base.png and media/ga_mixed_survivor.png
+#### Survivor Selection Method:
+
+- Control: `elitism`
+- Test: `survivor_select`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_mixed_survivor.png" style="width:50%;">
+</div>
+
+Elitism performed significantly better than our mixed survivor selection. Our mixed survivor selection took the best 90 percent of children and the best 10 percent of parents to be the next population. This meant that a lot of children with bad mutations were getting selected as survivors. Because of this, it took much longer for the algorithm to converge on a solution. We actually had an issue when we were first testing our algorithm where we thought we had implemented it wrong because it wouldn't converge. In reality, we just needed to tune our parameters a bit and use a different survivor selection method. Elitism was the solution we came to.
 
 ### Next Steps
 <!-- 
