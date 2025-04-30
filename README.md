@@ -1,6 +1,24 @@
 # Genetic Inverse Kinematics
 Finding inverse kinematic solutions for over-actuated 2D robot arms using genetic algorithms. A project for Advanced Algorithms at Olin College of Engineering by [Charlie Mawn](https://github.com/c-mawn) and [Dominic Salmieri](https://github.com/joloujo).
 
+
+## Setup
+
+This project was developed and tested in Python 3.10+. We recommend using a virtual environment.
+
+The necessary packages are `numpy` and `matplotlib`. `pip-tools` is an optional but recommended command line tool we use to manage package and subpackage versions.
+
+**To install the necessary requirements, use `pip install -r requirements.txt` in the command line.**
+
+If you change the requirements, you can rerun that command to install the new packages, or use `pip-sync` from pip-tools in the command line to also uninstall unnecessary packages or versions. If you need to add new packages, you can add them to `requirements.txt` directly, or just put the package name in `requirements.in` and use `pip-compile` from pip-tools in the command line to autogenerate a requirements file that ensures all package and subpackage versions work well with each other.
+
+## Usage
+
+After installing necessary packages, run the algorithm by using `python3 src/main.py` in the command line. 
+
+To change parameters of the genetic algorithm, go to the bottom of `main.py` and alter the arguments passed into the `run_ga` function. 
+
+
 ## Writeup
 
 ### Genetic Algorithms
@@ -139,6 +157,17 @@ This example is of our algorithm running with random initialization, euclidean e
 In the graph above, there are two key differences between the runs. First, the base implementation has a spike upwards in the very beginning, where the initial random theta values came to a decent solution, but were not worked into the genetic material of the following generations. The preset thetas are all initialized to the same values, so there is no spike upwards where the fitness gets worse in the beginning. The other main difference between the initialization methods is that the random thetas converge much quicker than the preset thetas. This is likely because the genetic diversity of the population with random thetas is much greater, so it can converge to a good solution much faster. However, with the preset thetas, all the diversity must come solely from crossover and mutation, so it takes more generations to converge. 
 
 #### Fitness Function Method:
+
+- Control: `euclidean_error`
+- Test: `manhattan_error`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_manhattan_error.png" style="width:50%;">
+</div>
+
+In the graph above, there is only one main difference between teh control graph and the test graph. The algorithm converges in a similar number of generations as the control graph, but the early generations seem much more sporadic. This is likely because the error calculation is quite different. For example, with the euclidean distance (used in the control) a solution where the current pose is off by 1 unit in the x direction and 1 unit in the y direction would not be a terrible solution. However, this would be calculated as much worse in the manhattan distance function. This can encourage different solutions to be prioritized by the algorithm, which can result in the more sporadic spikes in the algorithm output.
+
 #### Parent Selection Method:
 
 - Control: `roulette_parent_select`
@@ -152,7 +181,28 @@ In the graph above, there are two key differences between the runs. First, the b
 Tournament parent selection clearly outperformed roulette parent selection. While roulette selection took approximately 50 generations to converge, tournament selection regularly converged to a solution that was very close to the tolerance in around 10 generations. This is probably because it's so much more likely to choose better parents, but still keeps genetic diversity. Roulette selection was just too likely to pick solutions that weren't that good.
 
 #### Crossover Method:
+
+- Control: `joint_crossover`
+- Test: `uniform_crossover`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_uniform_crossover.png" style="width:50%;">
+</div>
+
+In the graph above, there is not too much of a difference between the two implementations here. It seems that the two methods of crossover (joint vs uniform) have similar results in the algorithm. This is likely because both the crossover methods only ever alter whole joints at a time, rather than changing the actual angle inside the joint. So, while both act quite differently from one generation to the next, the outcome evens out to a very similar result. 
+
 #### Mutation Method:
+- Control: `numerical_mutation`
+- Test: `weighted_mutation`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_weighted_mutation.png" style="width:50%;">
+</div>
+
+For the two methods of mutation, there was a clear better option. Base implementation utilizing the numerical 'nudges' in mutation significantly outperformed the weighted mutation. The weighted mutation was unable to converge to a remotely good solution in any of the testing done. This is likely because there simply wasn't enough of a genetic mutation to make the algorithm converge when using it. Since the mutation is the only method of actually adjusting angles inside the joints, there needs to be consistant small changes to the angles, which is provided by the numerical mutation method, but is lacking in the weighted method. 
+
 #### Survivor Selection Method:
 
 - Control: `elitism`
@@ -205,18 +255,4 @@ The use of genetic algorithms in robotics is an area that has been thoroughly st
 - *Writeup is portfolio ready!*
 - *Clean, accessible to outsiders, highlights hard work* -->
 
-## Setup
 
-This project was developed and tested in Python 3.10+. We recommend using a virtual environment.
-
-The necessary packages are `numpy` and `matplotlib`. `pip-tools` is an optional but recommended command line tool we use to manage package and subpackage versions.
-
-**To install the necessary requirements, use `pip install -r requirements.txt` in the command line.**
-
-If you change the requirements, you can rerun that command to install the new packages, or use `pip-sync` from pip-tools in the command line to also uninstall unnecessary packages or versions. If you need to add new packages, you can add them to `requirements.txt` directly, or just put the package name in `requirements.in` and use `pip-compile` from pip-tools in the command line to autogenerate a requirements file that ensures all package and subpackage versions work well with each other.
-
-## Usage
-
-After installing necessary packages, run the algorithm by using `python3 src/main.py` in the command line. 
-
-To change parameters of the genetic algorithm, go to the bottom of `main.py` and alter the arguments passed into the `run_ga` function. 
