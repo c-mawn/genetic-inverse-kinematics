@@ -12,7 +12,7 @@ Genetic algorithms treat possible solutions as individuals in a population, and 
 Generically, genetic algorithms look like the following diagram. 
 
 ![Genetic algorithm diagram](media/GA_diagram.png)
-*Figure 1: Genetic algorithm diagram<sup>[3]</sup>* 
+*Genetic algorithm diagram<sup>[3]</sup>* 
 <!-- TODO: Needs citation -->
 
 First, the population is initialized. Then the algorithm enters a loop of selecting parents, creating children, slightly changing those children, and reselecting the population. The algorithm leaves this loop when it meets it's termination criteria.
@@ -110,8 +110,21 @@ Both of these metrics are combined in the `terminate` function, which allows the
 
 
 ### Results 
+<!-- 
 - Visualization of results provided in some format
 - Any technical reader can garner understanding of what your algorithm’s implementation produced
+-->
+
+Here is an example of our algorithm running:
+
+<img src="media/ga_running.gif" width="400">
+
+
+In this GIF, you can see the entire progression of our algorithm. The arm starts off in a decent position, but the first generation isn't great because all of the parents are just random individuals. Then the arm makes some larger changes to the configuration to get close to the goal. Then, after only a fraction of a second, the algorithm has found a fairly good solution, and the arm jiggles around, making small adjustments and trying to optimize for an even better solution. This is also shown in the graph of the best solution over time, which is shown at the and of the GIF and below.
+
+<img src="media/ga_example_graph.png" width="400">
+
+This example is of our algorithm running with random initialization, euclidean error, roulette parent selection, joint crossover, numerical mutation, and elitism survivor selection. The crossover rate was 85% and the mutation rate was 15%. We used a population size of 500, tolerance of 0.001,  and maximum generations of 250.
 
 ### Analysis
 - Description of what results mean
