@@ -197,13 +197,13 @@ The use of genetic algorithms in robotics is an area that has been thoroughly st
 
 [4] GeeksforGeeks, “Genetic algorithms,” GeeksforGeeks, https://www.geeksforgeeks.org/genetic-algorithms/ (accessed Apr. 29, 2025). 
 
-### *Quality*
+<!-- ### *Quality*
 - *Clear narrative thread throughout the writeup*
 - *No/minimal spelling & grammar mistakes*
 - *Writing makes sense*
 - *Writing is professional*
 - *Writeup is portfolio ready!*
-- *Clean, accessible to outsiders, highlights hard work*
+- *Clean, accessible to outsiders, highlights hard work* -->
 
 ## Setup
 
