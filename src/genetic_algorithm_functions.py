@@ -4,8 +4,12 @@ from ArmSim import ArmSim, ArmViz
 from typing import Callable
 from helpers import Configuration, Fitness_func, angles
 
-# TODO: Write other methods of each step
-# (need to do survivor select, and terminate)
+
+# Configuration Type is a type alias for list of ints,
+# representing one whole arm configuration
+
+# Fitness_func Type is a type alias for a fitness function, it is of type:
+# Callable[[Configuration, list[float], list[float], ArmViz|None], float]
 
 
 def random_initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> Configuration:
@@ -19,7 +23,7 @@ def random_initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> Configu
         bits_per_theta (int): The number of bits to use to represent each angle
 
     Returns:
-        thetas: list of ints each representing an angle in one arm configuration
+        list of ints each representing an angle in one arm configuration
     """
     return [random.randint(0, 2**bits_per_theta - 1) for _ in range(num_dof)]
 
@@ -38,7 +42,6 @@ def preset_initial_thetas(num_dof: int = 2, bits_per_theta: int = 16) -> Configu
     return [0] * num_dof
 
 
-# TODO: Just make a for look in the GA function
 def generate_population(
     init_func: Callable,
     population_size: int = 500,
@@ -48,16 +51,61 @@ def generate_population(
     """
     generates an initial set of arm configurations randomly
 
+    Args:
+        init_func: Callable: function to use to generate the initial population
+            (either random or preset)
+        population_size: int: The number of arm configurations to generate
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        bits_per_theta: int: The number of bits to use to represent each angle
+
     Returns:
         population: list[list[int]] : initial population set of thetas
     """
+
     population = []
     for _ in range(population_size):
+        # appends a new configuration to the population by calling the init func
+        # that was passed into the generate function (either random or preset)
         population.append(init_func(num_dof, bits_per_theta))
     return population
 
 
-def error(
+def manhattan_error(
+    configuration: Configuration,
+    goal_pose: list[float],
+    link_lengths: list[float],
+    viz: ArmViz | None = None,
+) -> float:
+    """
+    calculates the manhattan distance error between the goal pose and the
+    current pose
+
+    Args:
+        configuration: list[list[int]]: arm configuration to calc error
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
+        viz: ArmViz | None: optional visualization object
+    Returns:
+        error: float value representing the distance away from the goal pose
+            that the current pose is
+    """
+    # finds radian values for the arm configuration
+    config_rad = angles(configuration)
+
+    # creates an armsim object using the config and links
+    arm = ArmSim(config_rad, link_lengths, viz)
+
+    # performs forward kinematics on the arm, finding the pose of the ee
+    # given the current thetas
+    all_joints_pose = arm.fk()  # all joint poses, last element is ee pose
+    ee_pose = all_joints_pose[-1]
+
+    # calculates manhattan distance error between the goal and current pose
+    error = abs(goal_pose[0] - ee_pose[0]) + abs(goal_pose[1] - ee_pose[1])
+    return error
+
+
+def euclidean_error(
     configuration: Configuration,
     goal_pose: list[float],
     link_lengths: list[float],
@@ -66,15 +114,27 @@ def error(
     """
     calculates the euclidean error between the goal pose and the current pose
 
-    returns:
+    Args:
+        configuration: list[list[int]]: arm configuration to calc error
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
+        viz: ArmViz | None: optional visualization object
+    Returns:
         error: float value representing the distance away from the goal pose
             that the current pose is
     """
+    # finds radian values for the arm configuration
     config_rad = angles(configuration)
+
+    # creates an armsim object using the config and links
     arm = ArmSim(config_rad, link_lengths, viz)
+
+    # performs forward kinematics on the arm, finding the pose of the ee
+    # given the current thetas
     all_joints_pose = arm.fk()  # all joint poses, last element is ee pose
     ee_pose = all_joints_pose[-1]
 
+    # calculates euclidean error between the goal and current pose
     error = math.dist(goal_pose, ee_pose)
     return error
 
@@ -88,10 +148,16 @@ def tournament_parent_select(
     """
     given current population, selects 100 new parents using tournament selection
 
+    Args:
+        population: list[list[int]]: current population of arm configurations
+        fitness_func: Fitness_func: function to calculate fitness of each config
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
     Returns:
         selected_parents: list of arm configurations
     """
 
+    # sort the population based on fitness
     sorted_population = population.copy()
     sorted_population.sort(
         key=lambda configuration: fitness_func(
@@ -100,6 +166,7 @@ def tournament_parent_select(
     )
 
     selected_parents = []
+    # select 100 parents using tournament selection
     for _ in range(len(population)):
         tournament_indexes = random.sample(list(range(len(population))), 3)
         winner_index = min(tournament_indexes)
@@ -116,14 +183,20 @@ def roulette_parent_select(
     """
     given current population, selects 100 new parents using roulette selection
 
+    Args:
+        population: list[list[int]]: current population of arm configurations
+        fitness_func: Fitness_func: function to calculate fitness of each config
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
     returns:
         selected_parents: list of arm configurations
     """
-
+    # calculates fitness of each configuration
     fitnesses = [
         fitness_func(configuration, goal_pose, link_lengths, None)
         for configuration in population
     ]
+    # randomly selects a configuration to be a parent proportional to its fitness
     return [random.choices(population, fitnesses)[0] for _ in range(len(population))]
 
 
@@ -140,17 +213,22 @@ def joint_crossover(
     args:
         parent1: list[list[int]]: first arm configuration parent
         parent2: list[list[int]]: second arm configuration parent
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        cross_prob: float: probability of crossover occuring
 
     returns:
-        parent1: list[list[int]]: parent1 new (possibly unchanged) config
-        parent2: list[list[int]]: parent2 new (possibly unchanged) config
+        child1: list[list[int]]: parent1 new (possibly unchanged) config
+        child2: list[list[int]]: parent2 new (possibly unchanged) config
     """
 
+    # if the crossover probability is not met, return the parents unchanged
     if not random.random() < cross_prob:
         return parent1, parent2
 
+    # randomly select a crossover point
     cross_point = random.choice(range(0, num_dof - 1))
 
+    # create the children by swapping the values of the parents at the crossover point
     child1 = parent1[:cross_point] + parent2[cross_point:]
     child2 = parent2[:cross_point] + parent1[cross_point:]
 
@@ -170,18 +248,22 @@ def uniform_crossover(
     args:
         parent1: list[list[int]]: first arm configuration parent
         parent2: list[list[int]]: second arm configuration parent
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        cross_prob: float: probability of crossover occuring
 
     returns:
         child1: list[list[int]]: parent1 new (possibly unchanged) config
         child2: list[list[int]]: parent2 new (possibly unchanged) config
     """
 
+    # if the crossover probability is not met, return the parents unchanged
     if not random.random() < cross_prob:
         return parent1, parent2
 
     child1 = []
     child2 = []
 
+    # for each dof, randomly select which parent's value to use
     for i in range(num_dof):
         if random.random() < 0.5:
             child1.append(parent2[i])
@@ -202,14 +284,22 @@ def mutation(
     """
     Performs a mutation based on the mutation probability
 
-    args:
+    Args:
         configuration: list[list[int]]: one arm configuration to be mutated
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        bits_per_theta: int: The number of bits to use to represent each angle
+        mutation_prob: float: probability of mutation occuring
+
+    Returns:
+        new_configuration: list[list[int]]: mutated arm configuration
     """
 
+    # calculates probability of each bit being flipped
     mutation_prob_each_bit = 1 - (1 - mutation_prob) ** (1 / (num_dof * bits_per_theta))
 
     new_configuration: Configuration = []
 
+    # for each joint, randomly select a bit to flip
     for i, joint in enumerate(configuration):
         flip_bit_string = "".join(
             [
@@ -218,6 +308,7 @@ def mutation(
             ]
         )
 
+        # flips the bit
         new_configuration.append(joint ^ int(flip_bit_string, 2))
 
     return new_configuration
@@ -236,18 +327,26 @@ def weighted_mutation(
 
     Args:
         configuration: list[list[int]]: current arm config to mutate
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        bits_per_theta: int: The number of bits to use to represent each angle
+        mutation_prob: float: probability of mutation occuring
+
+    Returns:
+        new_configuration: list[list[int]]: mutated arm configuration
     """
 
+    # calculates probability of each bit being flipped
     mutation_prob_each_joint = 1 - (1 - mutation_prob) ** (1 / (num_dof))
 
     new_configuration: Configuration = []
 
     for i, joint in enumerate(configuration):
-
+        # if the mutation probability is not met, append the unchanged joint
         if not random.random() < mutation_prob_each_joint:
             new_configuration.append(joint)
             continue
 
+        # makes the weighting for each bit
         bit_weight = [i for i in reversed(range(0, bits_per_theta))]
         mutation_magnitude = random.choices(
             range(0, bits_per_theta),
@@ -265,10 +364,24 @@ def numerical_mutation(
     bits_per_theta: int = 16,
     mutation_prob: float = 0.75,
 ) -> Configuration:
+    """
+    Mutates the arm configuration by randomly adding a small value to each joint
 
+    Args:
+        configuration: list[list[int]]: current arm config to mutate
+        num_dof: int: The number of degrees of freedom of the desired robot arm
+        bits_per_theta: int: The number of bits to use to represent each angle
+        mutation_prob: float: probability of mutation occuring
+
+    Returns:
+        list[list[int]]: mutated arm configuration
+    """
+
+    # if the mutation probability is not met, return the unchanged configuration
     if not random.random() < mutation_prob:
         return configuration
 
+    # randomly adds a nudge to each joint
     return [
         (num + random.randint(-1024, 1024)) % 2**bits_per_theta for num in configuration
     ]
@@ -288,6 +401,9 @@ def survivor_select(
     args:
         parents: list[list[list[int]]]: list of parents
         children: list[list[list[int]]]: list of children
+        fitness_func: Fitness_func: function to calculate fitness of each config
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
 
     returns:
         survivors: list[list[list[int]]]: list of arm configurations that
@@ -317,12 +433,28 @@ def elitism(
     goal_pose: list[float],
     link_lengths: list[float],
 ) -> list[Configuration]:
+    """
+    Selects new parents by sorting all individuals based on fitness and selecting the
+    top 50% of them (assuming parents and children have same size)
 
+    Args:
+        parents: list[list[int]]]: list of parents
+        children: list[list[int]]]: list of children
+        fitness_func: Fitness_func: function to calculate fitness of each config
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
+
+    Returns:
+        survivors: list[list[int]]]: list of arm configurations that
+        survive to the next generation
+    """
+    # sort the parents and children together based on their fitness
+    pop_size = len(parents)
     all_individuals = parents + children
-
     all_individuals.sort(key=lambda x: fitness_func(x, goal_pose, link_lengths, None))
 
-    return all_individuals[:100]
+    # select the top 50% of individuals and returns them
+    return all_individuals[:pop_size]
 
 
 def terminate(
@@ -337,6 +469,18 @@ def terminate(
     """
     determines whether the GA has gotten close enough to the best solution
     to terminate. Based on generation count and accuracy within a tolerance
+
+    Args:
+        population: list[list[int]]: current population of arm configurations
+        current_generation: int: the current generation count
+        fitness_func: Fitness_func: function to calculate fitness of each config
+        goal_pose: list[float]: the goal pose to reach
+        link_lengths: list[float]: lengths of each link in the arm
+        max_generations: int: maximum number of generations to run
+        terminate_tol: float: tolerance for the best solution
+
+    Returns:
+        bool: True if the GA should terminate, False otherwise
     """
     # checks if the generation count has reached the max
     if current_generation >= max_generations:
