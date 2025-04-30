@@ -3,7 +3,6 @@ File for visualizing and simulating 2D robot arms
 """
 
 import tkinter as tk
-import numpy as np
 import math
 from weakref import WeakSet
 from collections.abc import Callable
