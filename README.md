@@ -127,12 +127,24 @@ In this GIF, you can see the entire progression of our algorithm. The arm starts
 This example is of our algorithm running with random initialization, euclidean error, roulette parent selection, joint crossover, numerical mutation, and elitism survivor selection. The crossover rate was 85% and the mutation rate was 15%. We used a population size of 500, tolerance of 0.001,  and maximum generations of 250.
 
 ### Analysis
-- Description of what results mean
-- Examples:
-  - Graphs showing comparisons of varying results
-  - Performance metrics
-- Shows and analyzes how good the solutions are and how quickly solutions are found
-- Comparison of methods used with results to back up
+
+#### Theta Initialization Method:
+
+- Control: `random_inital_thetas`
+- Test: `preset_intial_thetas`
+
+<div style="display: flex;">
+  <img src="media/ga_base.png" style="width:50%;">
+  <img src="media/ga_preset_thetas.png" style="width:50%;">
+</div>
+
+In the graph above, there are two key differences between the runs. First, the base implementation has a spike upwards in the very beginning, where the initial random theta values came to a decent solution, but were not worked into the genetic material of the following generations. The preset thetas are all initialized to the same values, so there is no spike upwards where the fitness gets worse in the beginning. The other main difference between the initialization methods is that the random thetas converge much quicker than the preset thetas. This is likely because the genetic diversity of the population with random thetas is much greater, so it can converge to a good solution much faster. However, with the preset thetas, all the diversity must come solely from crossover and mutation, so it takes more generations to converge. 
+
+#### Fitness Function Method:
+#### Parent Selection Method:
+#### Crossover Method:
+#### Mutation Method:
+#### Survivor Selection Method: dom start here the images are media/ga_base.png and media/ga_mixed_survivor.png
 
 ### Next Steps
 <!-- 
